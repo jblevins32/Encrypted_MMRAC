@@ -28,7 +28,7 @@ def pgen(bit_length, rho_, p):
 def encode(x, delta):
     m = floor(x / delta + 0.5)
 
-    return m
+    return int(m)
 
 
 def decode(m, delta):
@@ -38,7 +38,7 @@ def decode(m, delta):
 
 
 def encrypt(m, kappa, p, modulus):
-    q = modulus // p
+    q = modulus
 
     r = get_rand(1, q)
     s = get_rand(0, kappa)

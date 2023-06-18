@@ -4,14 +4,14 @@ from dyers import *
 from dyersmat import *
 import math
 
-# reg_vec isn't giving correct output because beta 0 is losing data to encoding
+# reg_vec isn't giving correct output because beta 0 is losing data to encoding. Fixed with delta = .01
 # enc_c is erroring
 
 # Encryption
 bit_length = 256
 rho = 1
 rho_ = 32
-delta = 0.1
+delta = 0.01
 kappa, p = keygen(bit_length, rho, rho_)
 modulus = pgen(bit_length, rho_, p)
 
@@ -92,7 +92,7 @@ def main():
         enc_e_vec.append(enc_e.flatten())
         #eps = np.dot(enc_c, enc_e)
 
-        x = mat_dec(enc_x, kappa, p, delta)/10
+        x = mat_dec(enc_x, kappa, p, delta)/delta
         e_vec = mat_dec(enc_e_vec, kappa, p, delta)
 
         # Regressor Generator

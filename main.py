@@ -75,7 +75,7 @@ def main():
     enc_x = mat_enc(x, kappa, p, modulus, delta)
     enc_r = enc(r, kappa, p, modulus, delta)
     enc_u = enc(u, kappa, p, modulus, delta)
-    #enc_c = mat_enc(c, kappa, p, modulus, delta)
+    enc_c = mat_enc(c, kappa, p, modulus, delta)
     enc_beta_0 = enc(beta_0, kappa, p, modulus, delta)
     enc_beta_1 = enc(beta_1, kappa, p, modulus, delta)
     enc_r_dot = enc(r_dot, kappa, p, modulus, delta)
@@ -90,7 +90,7 @@ def main():
         enc_xr_vec.append(enc_xr.flatten())
         enc_e = enc_x - enc_xr # d2
         enc_e_vec.append(enc_e.flatten())
-        #eps = np.dot(enc_c, enc_e)
+        eps = np.dot(enc_c.flatten(), enc_e)
 
         x = mat_dec(enc_x, kappa, p, delta)/delta
         e_vec = mat_dec(enc_e_vec, kappa, p, delta)

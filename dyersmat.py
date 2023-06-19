@@ -1,18 +1,24 @@
 import numpy as np
 from dyers import *
 
-def mat_enc(matrix,kappa, p, modulus, delta):
-    rows = len(matrix)
-    cols = len(matrix[0])
-    enc_matrix = np.zeros((int(rows), int(cols)), dtype = object)
-    for i in range(rows):
-        for ii in range(cols):
-            enc_matrix[i][ii] = enc(matrix[i][ii], kappa, p, modulus, delta)
-    return enc_matrix
+def mat_enc(matrix, kappa, p, modulus, delta):
+    if len(matrix.shape) == 1:
+        rows = matrix.shape[0]
+        cols = 1
+        enc_matrix = np.zeros((int(rows), int(cols)), dtype=object)
+        for i in range(rows):
+            enc_matrix[i] = enc(matrix[i], kappa, p, modulus, delta)
+        return enc_matrix
+    else:
+        rows, cols = np.shape(matrix)
+        enc_matrix = np.zeros((int(rows), int(cols)), dtype=object)
+        for i in range(rows):
+            for ii in range(cols):
+                enc_matrix[i][ii] = enc(matrix[i][ii], kappa, p, modulus, delta)
+        return enc_matrix
 
 def mat_dec(matrix,kappa, p, delta):
-    rows = len(matrix)
-    cols = len(matrix[0])
+    rows, cols = np.shape(matrix)
     dec_matrix = np.zeros((int(rows), int(cols)), dtype=object)
     for i in range(rows):
         for ii in range(cols):

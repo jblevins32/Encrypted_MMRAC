@@ -2,14 +2,16 @@ import numpy as np
 from dyers import *
 
 def mat_enc(matrix, kappa, p, modulus, delta):
-    if len(matrix.shape) == 1:
+    if isinstance(matrix, list): # turns list types into ndarray types
+        matrix = np.array(matrix)
+    if len(matrix.shape) == 1: # Condition where only one column
         rows = matrix.shape[0]
         cols = 1
         enc_matrix = np.zeros((int(rows), int(cols)), dtype=object)
         for i in range(rows):
             enc_matrix[i] = enc(matrix[i], kappa, p, modulus, delta)
         return enc_matrix
-    else:
+    else: # Condition with multiple columns
         rows, cols = np.shape(matrix)
         enc_matrix = np.zeros((int(rows), int(cols)), dtype=object)
         for i in range(rows):

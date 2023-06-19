@@ -4,8 +4,7 @@ from dyers import *
 from dyersmat import *
 import math
 
-# reg_vec isn't giving correct output because beta 0 is losing data to encoding. Fixed with delta = .01
-# enc_c is erroring
+# eps on iteration 3 is wrong
 
 # Encryption
 bit_length = 256
@@ -14,6 +13,8 @@ rho_ = 32
 delta = 0.01
 kappa, p = keygen(bit_length, rho, rho_)
 modulus = pgen(bit_length, rho_, p)
+reset1 = 1  # Reset Encryption of epsilon and regressor generator
+reset2 = 1  # Reset Encryption of parameter adaptation
 
 def main():
     # Reference inputs
@@ -61,20 +62,19 @@ def main():
     enc_e_vec = []
     e_vec = []
     enc_reg_vec = []
-    u_vec = []
-    par_vec = []
-    par = np.array([[0], [0]])
+    enc_u_vec = []
+    enc_par_vec = []
+    enc_par = np.array([[0], [0]])
 
     # encryption of matricies and variables
+    enc_Ts = enc(Ts, kappa, p, modulus, delta)
     enc_d = enc(1/delta, kappa, p, modulus, delta) # for balancing encoding depths
     enc_Ar = mat_enc(Ar, kappa, p, modulus, delta)
     enc_Br = mat_enc(Br, kappa, p, modulus, delta)
     enc_A = mat_enc(A, kappa, p, modulus, delta)
     enc_B = mat_enc(B, kappa, p, modulus, delta)
     enc_xr = mat_enc(xr, kappa, p, modulus, delta)
-    enc_x = mat_enc(x, kappa, p, modulus, delta)
     enc_r = enc(r, kappa, p, modulus, delta)
-    enc_u = enc(u, kappa, p, modulus, delta)
     enc_c = mat_enc(c, kappa, p, modulus, delta)
     enc_beta_0 = enc(beta_0, kappa, p, modulus, delta)
     enc_beta_1 = enc(beta_1, kappa, p, modulus, delta)
@@ -85,6 +85,9 @@ def main():
     k = 0  # step
     t = 0  # time
     while k <= 50:
+        enc_u = enc(u, kappa, p, modulus, delta)
+        enc_x = mat_enc(x, kappa, p, modulus, delta)
+
         enc_xr = np.dot(enc_Ar, enc_xr) + np.dot(enc_Br, enc_r) # d2 - encrypted plant calculation
         enc_x = np.dot(enc_A, enc_x) + np.dot(enc_B, enc_u) # d2 - Only the output of this needs to be encrypted
         enc_x_vec.append(enc_x.flatten())
@@ -93,7 +96,8 @@ def main():
         enc_e_vec.append(enc_e.flatten())
         enc_eps = np.dot(enc_c.flatten(), enc_e)
 
-        x = mat_dec(enc_x, kappa, p, delta)/delta
+        dec_xr = mat_dec(enc_xr, kappa, p, delta)
+        dec_x = mat_dec(enc_x, kappa, p, delta)
         e_vec = mat_dec(enc_e_vec, kappa, p, delta)
 
         # Regressor Generator
@@ -116,12 +120,13 @@ def main():
         dec_p4 = dec(enc_p4, kappa, p, delta)
         dec_p5 = dec(enc_p5, kappa, p, delta)
 
-        # Resetting reg because of overflow
-        reg = mat_dec(enc_reg, kappa, p, delta) # encoding depth of 2
-        reg = np.array([reg[0][0] / delta, reg[1][0]])
-        enc_reg = mat_enc(reg, kappa, p, modulus, delta)
-        eps = mat_dec(enc_eps, kappa, p, delta) # encoding depth of 2
-        enc_eps = enc(eps, kappa, p, modulus, delta)
+        # Resetting reg and eps because of overflow
+        if reset1 == 1:
+            reg = mat_dec(enc_reg, kappa, p, delta) # encoding depth of 2
+            reg = np.array([reg[0][0] / delta, reg[1][0]]) * delta * delta
+            enc_reg = mat_enc(reg, kappa, p, modulus, delta)
+            eps = mat_dec(enc_eps, kappa, p, delta) * delta * delta # encoding depth of 2
+            enc_eps = enc(eps, kappa, p, modulus, delta)
 
         # Parameter adaptation
         enc_par_mult = enc_eps * enc_reg
@@ -132,14 +137,26 @@ def main():
         dec_par_mult = mat_dec(enc_par_mult, kappa, p, delta)
         dec_par_dot_vec = mat_dec(enc_par_dot_vec, kappa, p, delta)
 
+        # Integrator
         if k != 0:
-            par = par + np.dot(par_dot_vec[k].reshape((2, 1)), Ts)
-        par_vec.append(par.flatten())
+            enc_par = enc_par * enc_d + np.dot(enc_par_dot_vec[k-1].reshape((2, 1)), enc_Ts)
+        enc_par_vec.append(enc_par.flatten())
 
-        u = np.dot(reg.transpose(), par)
-        u_vec.append(u.flatten())
+        # Resetting par because of overflow
+        if reset2 == 1:
+            par = mat_dec(enc_par, kappa, p, delta) * delta * delta * delta
+            enc_par = mat_enc(par, kappa, p, modulus, delta)
+
+        enc_u = np.dot(enc_reg.transpose(), enc_par)
+        enc_u_vec.append(enc_u.flatten())
         k = k + 1
         t = t + Ts
+
+        # Debug stuff
+        dec_par_vec = mat_dec(enc_par_vec, kappa, p, delta)
+
+        u = dec(enc_u, kappa, p, delta) * delta
+        x = mat_dec(enc_x, kappa, p, delta) * delta
 
     t = np.arange(Ts, (k + 1) * Ts, Ts)
 

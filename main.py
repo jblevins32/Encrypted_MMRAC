@@ -54,8 +54,8 @@ def main():
     gains = np.array([[-gam1, 0], [0, -gam2]])
     u = 0
     r = 0
-    Ts = 0.2
-    par_dot_vec = []
+    Ts = 0.01
+    enc_par_dot_vec = []
     enc_x_vec = []
     enc_xr_vec = []
     enc_e_vec = []
@@ -80,6 +80,7 @@ def main():
     enc_beta_1 = enc(beta_1, kappa, p, modulus, delta)
     enc_r_dot = enc(r_dot, kappa, p, modulus, delta)
     enc_r_ddot = enc(r_ddot, kappa, p, modulus, delta)
+    enc_gains = mat_enc(gains, kappa, p, modulus, delta)
 
     k = 0  # step
     t = 0  # time
@@ -90,7 +91,7 @@ def main():
         enc_xr_vec.append(enc_xr.flatten())
         enc_e = enc_x - enc_xr # d2
         enc_e_vec.append(enc_e.flatten())
-        eps = np.dot(enc_c.flatten(), enc_e)
+        enc_eps = np.dot(enc_c.flatten(), enc_e)
 
         x = mat_dec(enc_x, kappa, p, delta)/delta
         e_vec = mat_dec(enc_e_vec, kappa, p, delta)
@@ -115,11 +116,22 @@ def main():
         dec_p4 = dec(enc_p4, kappa, p, delta)
         dec_p5 = dec(enc_p5, kappa, p, delta)
 
-        reg_vec = mat_dec(enc_reg_vec, kappa, p, delta)
+        # Resetting reg because of overflow
+        reg = mat_dec(enc_reg, kappa, p, delta) # encoding depth of 2
+        reg = np.array([reg[0][0] / delta, reg[1][0]])
+        enc_reg = mat_enc(reg, kappa, p, modulus, delta)
+        eps = mat_dec(enc_eps, kappa, p, delta) # encoding depth of 2
+        enc_eps = enc(eps, kappa, p, modulus, delta)
 
         # Parameter adaptation
-        par_dot = np.dot(gains, eps * reg)
-        par_dot_vec.append(par_dot.flatten())
+        enc_par_mult = enc_eps * enc_reg
+        enc_par_dot = np.dot(enc_gains, enc_par_mult)
+        enc_par_dot_vec.append(enc_par_dot.flatten())
+
+        # Debug stuff
+        dec_par_mult = mat_dec(enc_par_mult, kappa, p, delta)
+        dec_par_dot_vec = mat_dec(enc_par_dot_vec, kappa, p, delta)
+
         if k != 0:
             par = par + np.dot(par_dot_vec[k].reshape((2, 1)), Ts)
         par_vec.append(par.flatten())

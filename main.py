@@ -3,18 +3,24 @@ import matplotlib.pyplot as plt
 from dyers import *
 from dyersmat import *
 import math
+import pdb
 
-# eps on iteration 3 is wrong
+#pdb.set_trace()
+
+# The issue with decrypting and doing math outside of cyphertext is that I loose data. enc(.0111)*enc(.05) = .000555 but enc(.0111*.05) = 0
+# The other issue is that I am trying to make error go to 0; therefore, as error gets smaller, my delta value cannot track those small numbers. Why not use huge delta? Apparently it's hard to encrypt large numbers
+# par mult of iteration 3 is where small numbers become an issue
 
 # Encryption
 bit_length = 256
 rho = 1
 rho_ = 32
-delta = 0.01
+delta = 0.001
 kappa, p = keygen(bit_length, rho, rho_)
 modulus = pgen(bit_length, rho_, p)
 reset1 = 1  # Reset Encryption of epsilon and regressor generator
 reset2 = 1  # Reset Encryption of parameter adaptation
+reset3 = 1  # Reset Encryption of xr
 
 def main():
     # Reference inputs
@@ -23,7 +29,7 @@ def main():
     r_ddot = 0
 
     m = 1
-    b = 0.2
+    b = .2
     k = 0
 
     zeta = 0.8
@@ -84,21 +90,27 @@ def main():
 
     k = 0  # step
     t = 0  # time
-    while k <= 50:
-        enc_u = enc(u, kappa, p, modulus, delta)
-        enc_x = mat_enc(x, kappa, p, modulus, delta)
+    while k <= 20:
+        enc_xr = np.dot(enc_Ar, enc_xr) + np.dot(enc_Br, enc_r)  # d2 - encrypted plant calculation
 
-        enc_xr = np.dot(enc_Ar, enc_xr) + np.dot(enc_Br, enc_r) # d2 - encrypted plant calculation
-        enc_x = np.dot(enc_A, enc_x) + np.dot(enc_B, enc_u) # d2 - Only the output of this needs to be encrypted
+        # For resetting xr
+        if reset3 == 1:
+            xr = mat_dec(enc_xr, kappa, p, delta)
+            enc_xr = mat_enc(xr, kappa, p, modulus, delta)
+
+        x = np.dot(A, x) + np.dot(B, u)  # d2 - Only the output of this needs to be encrypted
+        enc_x = mat_enc(x, kappa, p, modulus, delta * delta)
+
         enc_x_vec.append(enc_x.flatten())
         enc_xr_vec.append(enc_xr.flatten())
         enc_e = enc_x - enc_xr # d2
         enc_e_vec.append(enc_e.flatten())
         enc_eps = np.dot(enc_c.flatten(), enc_e)
 
-        dec_xr = mat_dec(enc_xr, kappa, p, delta)
-        dec_x = mat_dec(enc_x, kappa, p, delta)
-        e_vec = mat_dec(enc_e_vec, kappa, p, delta)
+        dec_eps = dec(enc_eps, kappa, p, delta)
+        dec_xr = mat_dec(enc_xr, kappa, p, delta * delta)
+        dec_x = mat_dec(enc_x, kappa, p, delta * delta)
+        dec_e_vec = mat_dec(enc_e_vec, kappa, p, delta * delta)
 
         # Regressor Generator
         r = -math.sin(t + math.pi / 2) + 1
@@ -123,13 +135,15 @@ def main():
         # Resetting reg and eps because of overflow
         if reset1 == 1:
             reg = mat_dec(enc_reg, kappa, p, delta) # encoding depth of 2
-            reg = np.array([reg[0][0] / delta, reg[1][0]]) * delta * delta
+            reg = np.array([reg[0][0] / delta, reg[1][0]]) * delta * delta  # Correcting encoding depth
             enc_reg = mat_enc(reg, kappa, p, modulus, delta)
             eps = mat_dec(enc_eps, kappa, p, delta) * delta * delta # encoding depth of 2
             enc_eps = enc(eps, kappa, p, modulus, delta)
+            par_mult = eps * reg
+            par_mult = par_mult.reshape((2, 1))  # Reshape to a 2x1 vector
+            enc_par_mult = enc_eps * enc_reg #mat_enc(par_mult, kappa, p, modulus, delta)
 
         # Parameter adaptation
-        enc_par_mult = enc_eps * enc_reg
         enc_par_dot = np.dot(enc_gains, enc_par_mult)
         enc_par_dot_vec.append(enc_par_dot.flatten())
 
@@ -155,12 +169,17 @@ def main():
         # Debug stuff
         dec_par_vec = mat_dec(enc_par_vec, kappa, p, delta)
 
-        u = dec(enc_u, kappa, p, delta) * delta
+        u = [np.dot(reg.transpose(),par)]    # dec(enc_u, kappa, p, delta) * delta
         x = mat_dec(enc_x, kappa, p, delta) * delta
 
     t = np.arange(Ts, (k + 1) * Ts, Ts)
 
     # Plot the Results
+    e_vec = mat_dec(enc_e_vec, kappa, p, delta * delta)
+    par_vec = mat_dec(enc_par_vec, kappa, p, delta * delta * delta * delta)
+    x_vec = mat_dec(enc_x_vec, kappa, p, delta * delta)
+    xr_vec = mat_dec(enc_xr_vec, kappa, p, delta * delta)
+
     plt.figure(1)
     plt.subplot(311)
     plt.plot(t, np.array(e_vec)[:, 0])
@@ -177,7 +196,8 @@ def main():
     plt.ylabel('Output')
 
     plt.figure(2)
-    plt.plot(t, np.array(x_vec)[:, 0], t, np.array(xr_vec)[:, 0])
+    plt.plot(t, np.array(x_vec)[:, 0], label='Actual model')
+    plt.plot(t, np.array(xr_vec)[:, 0], label='Reference model')
     plt.title('Actual vs Reference Model')
     plt.xlabel('Time')
     plt.show()

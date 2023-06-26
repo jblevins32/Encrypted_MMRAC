@@ -36,10 +36,3 @@ def mat_dec(matrix, kappa, p, delta):
             for ii in range(cols):
                 dec_matrix[i][ii] = dec(matrix[i][ii], kappa, p, delta)
         return dec_matrix
-# def mat_dec(matrix,kappa, p, delta):
-#     rows, cols = np.shape(matrix)
-#     dec_matrix = np.zeros((int(rows), int(cols)), dtype=object)
-#     for i in range(rows):
-#         for ii in range(cols):
-#             dec_matrix[i][ii] = dec(matrix[i][ii], kappa, p, delta)
-#     return dec_matrix

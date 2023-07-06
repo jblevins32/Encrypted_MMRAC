@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from dyers import *
 from dyersmat import *
 import math
+from compare import *
 import pdb
 
 #pdb.set_trace()
@@ -37,8 +37,8 @@ def main():
     r_ddot = 0
 
     # system parameters
-    m = 1
-    b = .2
+    m = 10
+    b = 2
     k = 0
 
     zeta = .8 # Damping Ratio
@@ -137,6 +137,7 @@ def main():
             if reset_reg_eps == 1:
                 reg = mat_dec(enc_reg, kappa, p, delta) # encoding depth of 2
                 reg = np.array([reg[0][0] / delta, reg[1][0]]) * delta * delta  # Correcting encoding depth
+                reg_vec.append(reg.flatten())
                 enc_reg = mat_enc(reg, kappa, p, modulus, delta)
                 eps = mat_dec(enc_eps, kappa, p, delta) * delta * delta # encoding depth of 2
                 enc_eps = enc(eps, kappa, p, modulus, delta)
@@ -207,13 +208,19 @@ def main():
 
     t = np.arange(Ts, (k + 1) * Ts, Ts)
 
-    # Plot the Results
+    # Analyze the data
     if Encrypt == 1:
-        e_vec = mat_dec(enc_e_vec, kappa, p, delta * delta)
-        par_vec = mat_dec(enc_par_vec, kappa, p, delta * delta * delta * delta)
         x_vec = mat_dec(enc_x_vec, kappa, p, delta * delta)
         xr_vec = mat_dec(enc_xr_vec, kappa, p, delta * delta)
+        e_vec = mat_dec(enc_e_vec, kappa, p, delta * delta)
+        par_vec = mat_dec(enc_par_vec, kappa, p, delta * delta * delta * delta)
+        par_dot_vec = mat_dec(enc_par_dot_vec, kappa, p, delta * delta * delta)
+        write_matrices_to_csv([x_vec, xr_vec, e_vec, par_vec, reg_vec, par_dot_vec],
+                              ['x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec'], 'enc_data.csv')
+    else:
+        write_matrices_to_csv([x_vec, xr_vec, e_vec, par_vec, reg_vec, par_dot_vec], ['x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec'], 'un_enc_data.csv')
 
+    # Plot the Results
     plt.figure(1)
     plt.subplot(311)
     plt.plot(t, np.array(e_vec)[:, 0])
@@ -234,6 +241,7 @@ def main():
     plt.plot(t, np.array(xr_vec)[:, 0], label='Reference model')
     plt.title('Actual vs Reference Model')
     plt.xlabel('Time')
+    plt.legend(loc='lower right')
     plt.show()
 
 if __name__ == '__main__':

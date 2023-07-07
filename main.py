@@ -7,11 +7,13 @@ import pdb
 
 #pdb.set_trace()
 
+# Possible solutions:
+# Use variable delta: If I see overflow coming, change delta to accommodate
+# Somehow apply quantizer stuff
+
 # Need to turn to discrete space
-# Need to understand stability
-# Non-encrypted version doesnt work
-# Do the problem with larger numbers to see if I get the same instability
-# Incorporate some encoding error fix
+# Need to understand stability...stability of gradient descent or of MRAC?
+# Do the problem with larger numbers to see if I get the same instability... I assume more overflow
 # Need to watch adaptive lectures to understand it more
 
 # The issue with decrypting and doing math outside of cyphertext is that I loose data. enc(.0111)*enc(.05) = .000555 but enc(.0111*.05) = 0
@@ -19,7 +21,6 @@ import pdb
 # par mult of iteration 3 is where small numbers become an issue
 
 # Encryption
-Encrypt = 0 # Encrypt? 1 = yes, 0 = no
 bit_length = 256
 rho = 1
 rho_ = 32
@@ -29,20 +30,21 @@ modulus = pgen(bit_length, rho_, p)
 reset_xr = 1  # Reset Encryption of xr
 reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
 reset_par = 1  # Reset Encryption of par
+# cannot get correct results if both reg_eps and par are not reset. Need to make u calculation conditions for these cases
 
 def main():
     # Reference inputs
-    r = 1
+    r = 0
     r_dot = 0
     r_ddot = 0
 
     # system parameters
-    m = 10
-    b = 2
+    m = 1
+    b = .2
     k = 0
 
-    zeta = .8 # Damping Ratio
-    wn = .5 # Natural Frequency
+    zeta = .8  # Damping Ratio
+    wn = .5  # Natural Frequency
     beta_1 = 2 * zeta * wn
     beta_0 = wn * wn
 
@@ -55,7 +57,7 @@ def main():
     Br = np.array([[0], [beta_0]])
 
     # Initial Conditions
-    x = np.array([[0], [0]])
+    x = np.array([[0], [1]])
     xr = np.array([[0], [0]])
 
     # Other variables
@@ -65,7 +67,7 @@ def main():
     gains = np.array([[-gam1, 0], [0, -gam2]])
     u = 0
     r = 0
-    Ts = 0.01
+    Ts = 0.1
     enc_par_dot_vec = []
     enc_x_vec = []
     enc_xr_vec = []
@@ -79,11 +81,13 @@ def main():
     xr_vec = []
     e_vec = []
     par_vec = []
+    u_vec = []
+    r_vec = []
     enc_par = np.array([[0], [0]])
     par = np.array([[0], [0]])
 
     # encryption of matricies and variables
-    enc_Ts = enc(Ts, kappa, p, modulus, delta)
+    enc_Ts = enc(.01, kappa, p, modulus, delta)
     enc_d = enc(1/delta, kappa, p, modulus, delta) # for balancing encoding depths
     enc_Ar = mat_enc(Ar, kappa, p, modulus, delta)
     enc_Br = mat_enc(Br, kappa, p, modulus, delta)
@@ -96,13 +100,17 @@ def main():
     enc_r_ddot = enc(r_ddot, kappa, p, modulus, delta)
     enc_gains = mat_enc(gains, kappa, p, modulus, delta)
 
-    k = 0  # step
+    k = 1  # step
     t = 0  # time
-    while k <= 1000:
+    Encrypt = 1  # Encrypt? 1 = yes, 0 = no
+
+    while k <= 999:
 
         if Encrypt == 1:
             # Calculating next encrypted reference state
             enc_xr = np.dot(enc_Ar, enc_xr) + np.dot(enc_Br, enc_r)  # ed2
+            r_vec.append(dec(enc_r, kappa, p, delta))
+
             # For resetting xr
             if reset_xr == 1:
                 xr = mat_dec(enc_xr, kappa, p, delta)
@@ -111,10 +119,9 @@ def main():
             # PLANT: Calculating next output based on the input
             x = np.dot(A, x) + np.dot(B, u)  # d2 - Only the output of this needs to be encrypted
             enc_x = mat_enc(x, kappa, p, modulus, delta * delta)
-            x = mat_dec(enc_x, kappa, p, delta) * delta # Defining x for next iteration
 
             # Error and filtered error calculation
-            enc_e = enc_x - enc_xr # d2
+            enc_e = enc_x - enc_xr  # d2
             enc_eps = np.dot(enc_c.flatten(), enc_e)
 
             # Need these vectors later for plotting
@@ -123,7 +130,7 @@ def main():
             enc_e_vec.append(enc_e.flatten())
 
             # Regressor Generator split into parts for debugging
-            r = -math.sin(t + math.pi / 2) + 1
+            r = (-math.sin(t + math.pi / 2) + 1)
             enc_r = enc(r, kappa, p, modulus, delta)
             enc_p1 = enc_r * enc_beta_0 * enc_d
             enc_p2 = enc_r_dot * enc_beta_1 * enc_d
@@ -141,15 +148,15 @@ def main():
                 enc_reg = mat_enc(reg, kappa, p, modulus, delta)
                 eps = mat_dec(enc_eps, kappa, p, delta) * delta * delta # encoding depth of 2
                 enc_eps = enc(eps, kappa, p, modulus, delta)
-                enc_par_mult = enc_eps * enc_reg #mat_enc(par_mult, kappa, p, modulus, delta)
 
             # Parameter adaptation
+            enc_par_mult = enc_eps * enc_reg #mat_enc(par_mult, kappa, p, modulus, delta)
             enc_par_dot = np.dot(enc_gains, enc_par_mult)
             enc_par_dot_vec.append(enc_par_dot.flatten())
 
             # Integrator
-            if k != 0:
-                enc_par = enc_par * enc_d + np.dot(enc_par_dot_vec[k-1].reshape((2, 1)), enc_Ts)
+            if k != 1:
+                enc_par = enc_par * enc_d + np.dot(enc_par_dot_vec[k-2].reshape((2, 1)), enc_Ts)
             enc_par_vec.append(enc_par.flatten())
 
             # Resetting par because of overflow
@@ -158,12 +165,15 @@ def main():
                 enc_par = mat_enc(par, kappa, p, modulus, delta)
 
             # Calculating next input if par and reg were not exposed
-            enc_u = np.dot(enc_reg.transpose(), enc_par)
-            enc_u_vec.append(enc_u.flatten())
-            u = dec(enc_u, kappa, p, delta)
-
-            # Calculating next input if par and reg are exposed/reset
-            u = [np.dot(reg.transpose(),par)]    # dec(enc_u, kappa, p, delta) * delta
+            if reset_par == 0 & reset_reg_eps == 0:
+                enc_u = np.dot(enc_reg.transpose(), enc_par)
+                enc_u_vec.append(enc_u.flatten())
+                u = dec(enc_u, kappa, p, delta)
+                u_vec.append(u)
+            else:
+                # Calculating next input if par and reg are exposed/reset
+                u = [np.dot(reg.transpose(), par)]    # dec(enc_u, kappa, p, delta) * delta
+                u_vec.append([float(x) for x in u])
 
             k = k + 1
             t = t + Ts
@@ -180,7 +190,8 @@ def main():
             e_vec.append(e.flatten())
 
             # Regressor Generator split into parts for debugging
-            r = -math.sin(t + math.pi / 2) + 1
+            r = (-math.sin(t + math.pi / 2) + 1)
+            r_vec.append(r)
             p1 = r * beta_0
             p2 = r_dot * beta_1
             p3 = r_ddot
@@ -198,15 +209,16 @@ def main():
 
             # Integrator
             if k != 0:
-                par = par + np.dot(par_dot_vec[k - 1].reshape((2, 1)), Ts)
+                par = par + np.dot(par_dot_vec[k - 1].reshape((2, 1)), .01)
             par_vec.append(par.flatten())
 
             u = float(np.dot(reg.transpose(), par))
+            u_vec.append(u)
 
             k = k + 1
             t = t + Ts
 
-    t = np.arange(Ts, (k + 1) * Ts, Ts)
+    t = np.arange(Ts, k * Ts, Ts)
 
     # Analyze the data
     if Encrypt == 1:
@@ -215,10 +227,10 @@ def main():
         e_vec = mat_dec(enc_e_vec, kappa, p, delta * delta)
         par_vec = mat_dec(enc_par_vec, kappa, p, delta * delta * delta * delta)
         par_dot_vec = mat_dec(enc_par_dot_vec, kappa, p, delta * delta * delta)
-        write_matrices_to_csv([x_vec, xr_vec, e_vec, par_vec, reg_vec, par_dot_vec],
-                              ['x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec'], 'enc_data.csv')
+        write_matrices_to_csv([r_vec, x_vec, xr_vec, e_vec, par_vec, reg_vec, par_dot_vec, u_vec],
+                              ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'enc_data.csv')
     else:
-        write_matrices_to_csv([x_vec, xr_vec, e_vec, par_vec, reg_vec, par_dot_vec], ['x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec'], 'un_enc_data.csv')
+        write_matrices_to_csv([r_vec, x_vec, xr_vec, e_vec, par_vec, reg_vec, par_dot_vec, u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'un_enc_data.csv')
 
     # Plot the Results
     plt.figure(1)

@@ -19,6 +19,8 @@ import pdb
 # The issue with decrypting and doing math outside of cyphertext is that I loose data. enc(.0111)*enc(.05) = .000555 but enc(.0111*.05) = 0
 # The other issue is that I am trying to make error go to 0; therefore, as error gets smaller, my delta value cannot track those small numbers. Why not use huge delta? Apparently it's hard to encrypt large numbers
 # par mult of iteration 3 is where small numbers become an issue
+A = np.array([[0, 1], [1, 0]])
+B = np.array([[0, 1], [2, 1]])
 
 # Encryption
 bit_length = 256
@@ -58,7 +60,7 @@ def main():
 
     # Initial Conditions
     x = np.array([[0], [1]])
-    xr = np.array([[0], [0]])
+    xr = np.array([[0], [1]])
 
     # Other variables
     c = np.array([2, 3.125])
@@ -108,20 +110,21 @@ def main():
 
         if Encrypt == 1:
             # Calculating next encrypted reference state
-            enc_xr = np.dot(enc_Ar, enc_xr) + np.dot(enc_Br, enc_r)  # ed2
+            enc_xr = add(mat_mult(enc_Ar, enc_xr, modulus), mat_mult(enc_Br, enc_r, modulus), modulus)  # ed2
             r_vec.append(dec(enc_r, kappa, p, delta))
 
             # For resetting xr
             if reset_xr == 1:
                 xr = mat_dec(enc_xr, kappa, p, delta)
                 enc_xr = mat_enc(xr, kappa, p, modulus, delta)
+                neg_enc_xr = mat_enc(-xr, kappa, p, modulus, delta) # for subtracting values later
 
             # PLANT: Calculating next output based on the input
             x = np.dot(A, x) + np.dot(B, u)  # d2 - Only the output of this needs to be encrypted
             enc_x = mat_enc(x, kappa, p, modulus, delta * delta)
 
             # Error and filtered error calculation
-            enc_e = enc_x - enc_xr  # d2
+            enc_e = add(enc_x, neg_enc_xr, modulus)  # d2
             enc_eps = np.dot(enc_c.flatten(), enc_e)
 
             # Need these vectors later for plotting

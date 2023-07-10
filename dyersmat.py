@@ -40,7 +40,7 @@ def mat_dec(matrix, kappa, p, delta):
         return dec_matrix
 
 #  matrix multiplication with mod add/mult
-def mat_mult(matrix1, matrix2, modulus):
+def mat_mult(matrix1, matrix2, modulus, kappa, p, delta):
     if isinstance(matrix1, int) or isinstance(matrix2, int):
         mat_prod = mult(matrix1, matrix2, modulus)
     else:
@@ -48,13 +48,22 @@ def mat_mult(matrix1, matrix2, modulus):
             matrix1 = np.array(matrix1)
         if isinstance(matrix2, list):
             matrix2 = np.array(matrix2)
-        rows1, cols1 = np.shape(matrix1)
-        rows2, cols2 = np.shape(matrix2)
+        if len(matrix1.shape) == 1:  # Condition where only one column
+            rows1 = matrix1.shape[0]
+            cols1 = 1
+        else:
+            rows1, cols1 = np.shape(matrix1)
+        if len(matrix2.shape) == 1:  # Condition where only one column
+            rows2 = matrix2.shape[0]
+            cols2 = 1
+        else:
+            rows2, cols2 = np.shape(matrix2)
+
         if cols1 != rows2:
             raise ValueError("Matricies do not have correct dimensions for multiplication")
         mat_prod = np.zeros((int(rows1), int(cols2)), dtype=object)
         result = 0
-        for i in range(cols1):
+        for i in range(rows1):
             for ii in range(cols2):
                 for k in range(cols1):
                     result = add(result, mult(matrix1[i][k], matrix2[k][ii], modulus), modulus)

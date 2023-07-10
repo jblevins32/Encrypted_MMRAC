@@ -19,8 +19,6 @@ import pdb
 # The issue with decrypting and doing math outside of cyphertext is that I loose data. enc(.0111)*enc(.05) = .000555 but enc(.0111*.05) = 0
 # The other issue is that I am trying to make error go to 0; therefore, as error gets smaller, my delta value cannot track those small numbers. Why not use huge delta? Apparently it's hard to encrypt large numbers
 # par mult of iteration 3 is where small numbers become an issue
-A = np.array([[0, 1], [1, 0]])
-B = np.array([[0, 1], [2, 1]])
 
 # Encryption
 bit_length = 256
@@ -41,11 +39,11 @@ def main():
     r_ddot = 0
 
     # system parameters
-    m = 1
+    m = .2
     b = .2
     k = 0
 
-    zeta = .8  # Damping Ratio
+    zeta = 2  # Damping Ratio
     wn = .5  # Natural Frequency
     beta_1 = 2 * zeta * wn
     beta_0 = wn * wn
@@ -63,7 +61,7 @@ def main():
     xr = np.array([[0], [1]])
 
     # Other variables
-    c = np.array([2, 3.125])
+    c = np.array([[2, 3.125]])
     gam1 = 100
     gam2 = 10
     gains = np.array([[-gam1, 0], [0, -gam2]])
@@ -104,13 +102,13 @@ def main():
 
     k = 1  # step
     t = 0  # time
-    Encrypt = 1  # Encrypt? 1 = yes, 0 = no
+    Encrypt = 0  # Encrypt? 1 = yes, 0 = no
 
     while k <= 999:
 
         if Encrypt == 1:
             # Calculating next encrypted reference state
-            enc_xr = add(mat_mult(enc_Ar, enc_xr, modulus), mat_mult(enc_Br, enc_r, modulus), modulus)  # ed2
+            enc_xr = add(mat_mult(enc_Ar, enc_xr, modulus, kappa, p, delta), mat_mult(enc_Br, enc_r, modulus, kappa, p, delta), modulus)  # ed2
             r_vec.append(dec(enc_r, kappa, p, delta))
 
             # For resetting xr
@@ -125,7 +123,7 @@ def main():
 
             # Error and filtered error calculation
             enc_e = add(enc_x, neg_enc_xr, modulus)  # d2
-            enc_eps = np.dot(enc_c.flatten(), enc_e)
+            enc_eps = mat_mult(enc_c, enc_e, modulus, kappa, p, delta)
 
             # Need these vectors later for plotting
             enc_x_vec.append(enc_x.flatten())
@@ -135,11 +133,14 @@ def main():
             # Regressor Generator split into parts for debugging
             r = (-math.sin(t + math.pi / 2) + 1)
             enc_r = enc(r, kappa, p, modulus, delta)
-            enc_p1 = enc_r * enc_beta_0 * enc_d
-            enc_p2 = enc_r_dot * enc_beta_1 * enc_d
-            enc_p3 = enc_r_ddot * enc_d * enc_d
-            enc_p4 = mult(enc_beta_0, enc_x[0][0], modulus)
-            enc_p5 = mult(enc_beta_1, enc_x[1][0], modulus)
+            enc_p1 = mult(enc_r, mult(enc_beta_0, enc_d, modulus), modulus)
+            enc_p2 = mult(enc_r_dot, mult(enc_beta_1, enc_d, modulus), modulus)
+            enc_p3 = mult(enc_r_ddot, mult(enc_d, enc_d, modulus), modulus)
+            # enc_p1 = mat_mult(enc_r, mat_mult(enc_beta_0, enc_d, modulus, kappa, p, delta), modulus, kappa, p, delta)
+            # enc_p2 = mat_mult(enc_r_dot, mat_mult(enc_beta_1, enc_d, modulus, kappa, p, delta), modulus, kappa, p, delta)
+            # enc_p3 = mat_mult(enc_r_ddot, mult(enc_d, enc_d, modulus, kappa, p, delta), modulus, kappa, p, delta)
+            enc_p4 = mat_mult(enc_beta_0, enc_x[0][0], modulus, kappa, p, delta)
+            enc_p5 = mat_mult(enc_beta_1, enc_x[1][0], modulus, kappa, p, delta)
             enc_reg = np.array([[enc_x[1][0]], [enc_p1 + enc_p2 + enc_p3 - enc_p4 - enc_p5]]) #[enc_r * enc_beta_0 * enc_d + enc_r_dot * enc_beta_1 * enc_d + enc_r_ddot * enc_d * enc_d - enc_beta_0 * enc_x[0][0] - enc_beta_1 * enc_x[1][0]]])
             enc_reg_vec.append(enc_reg.flatten())
 
@@ -153,13 +154,13 @@ def main():
                 enc_eps = enc(eps, kappa, p, modulus, delta)
 
             # Parameter adaptation
-            enc_par_mult = enc_eps * enc_reg #mat_enc(par_mult, kappa, p, modulus, delta)
-            enc_par_dot = np.dot(enc_gains, enc_par_mult)
+            enc_par_mult = mat_mult(enc_eps, enc_reg, modulus, kappa, p, delta) #mat_enc(par_mult, kappa, p, modulus, delta)
+            enc_par_dot = mat_mult(enc_gains, enc_par_mult, modulus, kappa, p, delta)
             enc_par_dot_vec.append(enc_par_dot.flatten())
 
             # Integrator
             if k != 1:
-                enc_par = enc_par * enc_d + np.dot(enc_par_dot_vec[k-2].reshape((2, 1)), enc_Ts)
+                enc_par = add(mat_mult(enc_par, enc_d, modulus, kappa, p, delta), mat_mult(enc_par_dot_vec[k-2].reshape((2, 1)), enc_Ts, modulus, kappa, p, delta), modulus)
             enc_par_vec.append(enc_par.flatten())
 
             # Resetting par because of overflow
@@ -169,7 +170,7 @@ def main():
 
             # Calculating next input if par and reg were not exposed
             if reset_par == 0 & reset_reg_eps == 0:
-                enc_u = np.dot(enc_reg.transpose(), enc_par)
+                enc_u = mat_mult(enc_reg.transpose(), enc_par, modulus, kappa, p, delta)
                 enc_u_vec.append(enc_u.flatten())
                 u = dec(enc_u, kappa, p, delta)
                 u_vec.append(u)

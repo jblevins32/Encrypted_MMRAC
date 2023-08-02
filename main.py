@@ -7,7 +7,11 @@ import pdb
 
 #pdb.set_trace()
 
-# Possible solutions:
+# What my problems are
+# How I plan to address these problems
+# What I did while he was gone
+
+# Possible solutios:
 # Use variable delta: If I see overflow coming, change delta to accommodate
 # Somehow apply quantizer stuff
 
@@ -39,14 +43,14 @@ def main():
     r_ddot = 0
 
     # system parameters
-    m = .2
-    b = .2
+    m = 1
+    b = 2
     k = 0
 
-    zeta = 2  # Damping Ratio
+    zeta = .8  # Damping Ratio
     wn = .5  # Natural Frequency
-    beta_1 = 2 * zeta * wn
-    beta_0 = wn * wn
+    beta_1 = 1 #2 * zeta * wn
+    beta_0 = 1 #wn * wn
 
     # Creating plant state space
     A = np.array([[0, 1], [-k / m, -b / m]])
@@ -57,13 +61,14 @@ def main():
     Br = np.array([[0], [beta_0]])
 
     # Initial Conditions
-    x = np.array([[0], [1]])
-    xr = np.array([[0], [1]])
+    x = np.array([[0], [0]])
+    xr = np.array([[0], [0]])
 
     # Other variables
-    c = np.array([[2, 3.125]])
-    gam1 = 100
-    gam2 = 10
+    #c = np.array([[2, 3.125]])
+    c = np.array([[.5, 1]])
+    gam1 = 15
+    gam2 = 1
     gains = np.array([[-gam1, 0], [0, -gam2]])
     u = 0
     r = 0
@@ -102,9 +107,9 @@ def main():
 
     k = 1  # step
     t = 0  # time
-    Encrypt = 0  # Encrypt? 1 = yes, 0 = no
+    Encrypt = 1  # Encrypt? 1 = yes, 0 = no
 
-    while k <= 999:
+    while k <= 200:
 
         if Encrypt == 1:
             # Calculating next encrypted reference state
@@ -213,7 +218,7 @@ def main():
 
             # Integrator
             if k != 0:
-                par = par + np.dot(par_dot_vec[k - 1].reshape((2, 1)), .01)
+                par = par + np.dot(par_dot_vec[k - 1].reshape((2, 1)), Ts) # Ts might have to be different here than rest of code. IDK why.
             par_vec.append(par.flatten())
 
             u = float(np.dot(reg.transpose(), par))

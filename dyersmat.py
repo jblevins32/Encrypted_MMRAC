@@ -40,7 +40,7 @@ def mat_dec(matrix, kappa, p, delta):
         return dec_matrix
 
 #  matrix multiplication with mod add/mult
-def mat_mult(matrix1, matrix2, modulus, kappa, p, delta):
+def mat_mult(matrix1, matrix2, modulus):
     if isinstance(matrix1, int) or isinstance(matrix2, int):
         mat_prod = mult(matrix1, matrix2, modulus)
     else:
@@ -70,3 +70,39 @@ def mat_mult(matrix1, matrix2, modulus, kappa, p, delta):
                 mat_prod[i][ii] = result
                 result = 0
     return mat_prod
+
+def mat_encode(matrix, delta):
+    if isinstance(matrix, list):  # turns list types into ndarray types
+        matrix = np.array(matrix)
+    if len(matrix.shape) == 1:  # Condition where only one column
+        rows = matrix.shape[0]
+        cols = 1
+        encode_matrix = np.zeros((int(rows), int(cols)), dtype=object)
+        for i in range(rows):
+            encode_matrix[i] = encode(matrix[i], delta)
+        return encode_matrix
+    else:  # Condition with multiple columns
+        rows, cols = np.shape(matrix)
+        encode_matrix = np.zeros((int(rows), int(cols)), dtype=object)
+        for i in range(rows):
+            for ii in range(cols):
+                encode_matrix[i][ii] = encode(matrix[i][ii], delta)
+        return encode_matrix
+
+def mat_decode(matrix, delta):
+    if isinstance(matrix, list):  # turns list types into ndarray types
+        matrix = np.array(matrix)
+    if len(matrix.shape) == 1:  # Condition where only one column
+        rows = matrix.shape[0]
+        cols = 1
+        decode_matrix = np.zeros((int(rows), int(cols)), dtype=object)
+        for i in range(rows):
+            decode_matrix[i] = decode(matrix[i], delta)
+        return encode_matrix
+    else:  # Condition with multiple columns
+        rows, cols = np.shape(matrix)
+        decode_matrix = np.zeros((int(rows), int(cols)), dtype=object)
+        for i in range(rows):
+            for ii in range(cols):
+                encode_matrix[i][ii] = decode(matrix[i][ii], delta)
+        return decode_matrix

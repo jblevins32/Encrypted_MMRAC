@@ -98,11 +98,11 @@ def mat_decode(matrix, delta):
         decode_matrix = np.zeros((int(rows), int(cols)), dtype=object)
         for i in range(rows):
             decode_matrix[i] = decode(matrix[i], delta)
-        return encode_matrix
+        return decode_matrix
     else:  # Condition with multiple columns
         rows, cols = np.shape(matrix)
         decode_matrix = np.zeros((int(rows), int(cols)), dtype=object)
         for i in range(rows):
             for ii in range(cols):
-                encode_matrix[i][ii] = decode(matrix[i][ii], delta)
+                decode_matrix[i][ii] = decode(matrix[i][ii], delta)
         return decode_matrix

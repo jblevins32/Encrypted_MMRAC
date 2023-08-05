@@ -36,7 +36,7 @@ reset_par = 1  # Reset Encryption of par
 """
 
 def main():
-    e = Encrypter(enc_method=2)  # input enc_ada, encode_ada, or ada here. Instantiating the class
+    e = Encrypter(enc_method=0)  # input enc_ada, encode_ada, or ada here. Instantiating the class
     e.encrypt()
 
     """    # system parameters
@@ -259,7 +259,7 @@ def main():
     t = np.arange(Ts, k * Ts, Ts)"""
 
     # Analyze the data
-    if e.Encrypt == 1:
+    if e.Encrypt == 2:
         x_vec = mat_dec(e.enc_x_vec, e.kappa, e.p, e.delta * e.delta)
         xr_vec = mat_dec(e.enc_xr_vec, e.kappa, e.p, e.delta * e.delta)
         e_vec = mat_dec(e.enc_e_vec, e.kappa, e.p, e.delta * e.delta)
@@ -267,6 +267,8 @@ def main():
         par_dot_vec = mat_dec(e.enc_par_dot_vec, e.kappa, e.p, e.delta * e.delta * e.delta)
         write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec, e.u_vec],
                               ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'enc_data.csv')
+    elif e.Encrypt == 1:
+        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec_test', 'u_vec'], 'encode_data.csv')
     elif e.Encrypt == 0:
         write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'un_enc_data.csv')
 

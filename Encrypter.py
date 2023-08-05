@@ -6,93 +6,95 @@ from compare import *
 import pdb
 
 class Encrypter():
-    def __init__(self, enc_method):
+    def __init__(s, enc_method):
         # Encryption
-        self.bit_length = 256
-        self.rho = 1
-        self.rho_ = 32
-        self.delta = 0.01
-        self.kappa, self.p = keygen(self.bit_length, self.rho, self.rho_)
-        self.mod = pgen(self.bit_length, self.rho_, self.p)
-        self.reset_xr = 1  # Reset Encryption of xr
-        self.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
-        self.reset_par = 1  # Reset Encryption of par
+        s.bit_length = 256
+        s.rho = 1
+        s.rho_ = 32
+        s.delta = 0.00000000001
+        s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
+        s.mod = pgen(s.bit_length, s.rho_, s.p)
+        s.reset_xr = 1  # Reset Encryption of xr
+        s.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
+        s.reset_par = 1  # Reset Encryption of par
 
         # system parameters
-        self.m = 1
-        self.b = 2
-        self.k = 0
+        s.m = 1
+        s.b = 2
+        s.k = 0
 
-        self.zeta = .8  # Damping Ratio
-        self.wn = .5  # Natural Frequency
-        self.beta_1 = 1  # 2 * zeta * wn
-        self.beta_0 = 1  # wn * wn
+        s.zeta = .8  # Damping Ratio
+        s.wn = .5  # Natural Frequency
+        s.beta_1 = 1  # 2 * zeta * wn
+        s.beta_0 = 1  # wn * wn
 
         # Creating plant state space
-        self.A = np.array([[0, 1], [-self.k / self.m, -self.b / self.m]])
-        self.B = np.array([[0], [1 / self.m]])
+        s.A = np.array([[0, 1], [-s.k / s.m, -s.b / s.m]])
+        s.B = np.array([[0], [1 / s.m]])
 
         # Creating reference state space
-        self.Ar = np.array([[0, 1], [-self.beta_0, -self.beta_1]])
-        self.Br = np.array([[0], [self.beta_0]])
+        s.Ar = np.array([[0, 1], [-s.beta_0, -s.beta_1]])
+        s.Br = np.array([[0], [s.beta_0]])
 
         # Initial Conditions
-        self.x = np.array([[0], [0]])
-        self.xr = np.array([[0], [0]])
+        s.x = np.array([[0], [0]])
+        s.xr = np.array([[0], [0]])
 
         # Other variables
-        # self.c = np.array([[2, 3.125]])
-        self.c = np.array([[.5, 1]])
-        self.gam1 = 15
-        self.gam2 = 1
-        self.gains = np.array([[-self.gam1, 0], [0, -self.gam2]])
-        self.u = 0
-        self.r = 0
-        self.Ts = .1
-        self.enc_par_dot_vec = []
-        self.enc_x_vec = []
-        self.enc_xr_vec = []
-        self.enc_e_vec = []
-        self.enc_reg_vec = []
-        self.enc_u_vec = []
-        self.enc_par_vec = []
-        self.reg_vec = []
-        self.par_dot_vec = []
-        self.x_vec = []
-        self.xr_vec = []
-        self.e_vec = []
-        self.par_vec = []
-        self.u_vec = []
-        self.r_vec = []
-        self.enc_par = np.array([[0], [0]])
-        self.par = np.array([[0], [0]])
+        # s.c = np.array([[2, 3.125]])
+        s.c = np.array([[.5, 1]])
+        s.gam1 = 15
+        s.gam2 = 1
+        s.gains = np.array([[-s.gam1, 0], [0, -s.gam2]])
+        s.u = 0
+        s.r = 0
+        s.Ts = .1
+        s.Ts_time = s.Ts
+        s.enc_par_dot_vec = []
+        s.enc_x_vec = []
+        s.enc_xr_vec = []
+        s.enc_e_vec = []
+        s.enc_reg_vec = []
+        s.enc_u_vec = []
+        s.enc_par_vec = []
+        s.reg_vec = []
+        s.par_dot_vec = []
+        s.par_dot_vec_test = []
+        s.x_vec = []
+        s.xr_vec = []
+        s.e_vec = []
+        s.par_vec = []
+        s.u_vec = []
+        s.r_vec = []
+        s.enc_par = np.array([[0], [0]])
+        s.par = np.array([[0], [0]])
 
-        self.t = 0  # time
-        self.Encrypt = enc_method  # Encrypt? 1 = yes, 0 = no, 2 = encode only
+        s.t = 0  # time
+        s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
 
-    def encrypt(self):
-        for k in range(1, 200):
-            if self.Encrypt == 1:
-                self.enc_ada(k)
-            elif self.Encrypt == 2:
-                self.encode_ada(k)
-            elif self.Encrypt == 0:
-                self.ada(k)
-        self.t = np.arange(self.Ts, (k+1) * self.Ts, self.Ts)
+    def encrypt(s):
+        for k in range(1, 28):
+            if s.Encrypt == 2:
+                s.enc_ada(k)
+            elif s.Encrypt == 1:
+                s.encode_ada(k)
+            elif s.Encrypt == 0:
+                s.ada(k)
+        s.t = np.arange(s.Ts, (k+1) * s.Ts, s.Ts)
 
-    def enc_ada(self, k):
+    def enc_ada(s, k):
         # encryption of matrices and variables
         if k == 1:
-            enc_Ts = enc(self.Ts, kappa, p, mod, delta)  # d1
+            enc_Ts = enc(s.Ts, kappa, p, mod, delta)  # d1
             enc_d = enc(1 / delta, kappa, p, mod, delta)  # for balancing encoding depths
-            enc_Ar = mat_enc(self.Ar, kappa, p, mod, delta)  # d1
-            enc_Br = mat_enc(self.Br, kappa, p, mod, delta)  # d1
-            enc_xr = mat_enc(self.xr, kappa, p, mod, delta)  # d1
-            enc_r = enc(self.r, kappa, p, mod, delta)  # d1
-            enc_c = mat_enc(self.c, kappa, p, mod, delta)  # d1
-            enc_beta_0 = enc(self.beta_0, kappa, p, mod, delta)  # d1
-            enc_beta_1 = enc(self.beta_1, kappa, p, mod, delta)  # d1
-            enc_gains = mat_enc(self.gains, kappa, p, mod, delta)  # d1
+            enc_Ar = mat_enc(s.Ar, kappa, p, mod, delta)  # d1
+            enc_Br = mat_enc(s.Br, kappa, p, mod, delta)  # d1
+            enc_xr = mat_enc(s.xr, kappa, p, mod, delta)  # d1
+            enc_r = enc(s.r, kappa, p, mod, delta)  # d1
+            enc_c = mat_enc(s.c, kappa, p, mod, delta)  # d1
+            enc_beta_0 = enc(s.beta_0, kappa, p, mod, delta)  # d1
+            enc_beta_1 = enc(s.beta_1, kappa, p, mod, delta)  # d1
+            enc_gains = mat_enc(s.gains, kappa, p, mod, delta)  # d1
 
         # Calculating next encrypted reference state
         enc_xr = add(mat_mult(enc_Ar, enc_xr, mod), mat_mult(enc_Br, enc_r, mod), mod)  # d2
@@ -158,93 +160,102 @@ class Encrypter():
             u_vec.append(u)
         else:
             # Calculating next input if par and reg are exposed/reset
-            self.u = [np.dot(reg.transpose(), par)]  # dec(enc_u, kappa, p, delta) * delta
-            self.u_vec.append([float(x) for x in u])
+            s.u = [np.dot(reg.transpose(), par)]  # dec(enc_u, kappa, p, delta) * delta
+            s.u_vec.append([float(x) for x in u])
 
-        self.t = self.t + self.Ts
+        s.t = s.t + s.Ts
 
-    def encode_ada(self, k):
+    def encode_ada(s, k):
         if k == 1:
-            self.Ts = encode(self.Ts, self.delta)  # d1
-            self.c = mat_encode(self.c, self.delta)  # d1
-            self.beta_0 = encode(self.beta_0, self.delta)  # d1
-            self.beta_1 = encode(self.beta_1, self.delta)  # d1
-            self.gains = mat_encode(self.gains, self.delta)  # d1
-            self.Ar = mat_encode(self.Ar, self.delta)  # d1
-            self.xr = mat_encode(self.xr, self.delta)  # d1
-            self.Br = mat_encode(self.Br, self.delta)  # d1
-            self.r = encode(self.r, self.delta)  # d1
+            s.Ts = encode(s.Ts, s.delta)  # d1
+            s.c = mat_encode(s.c, s.delta)  # d1
+            s.beta_0 = encode(s.beta_0, s.delta)  # d1
+            s.beta_1 = encode(s.beta_1, s.delta)  # d1
+            s.gains = mat_encode(s.gains, s.delta)  # d1
+            s.Ar = mat_encode(s.Ar, s.delta)  # d1
+            s.xr = mat_encode(s.xr, s.delta)  # d1
+            s.Br = mat_encode(s.Br, s.delta)  # d1
+            s.r = encode(s.r, s.delta)  # d1
 
-        self.xr = np.dot(self.Ar, self.xr) + np.dot(self.Br, self.r)  # d2
-        self.x = np.dot(self.A, self.x) + np.dot(self.B, self.u)
-        self.x = mat_encode(self.x, self.delta**2)  # d2
-        e = self.x - self.xr
-        eps = np.dot(self.c.flatten(), e)  # d3
+        s.xr = np.dot(s.Ar, s.xr) + np.dot(s.Br, s.r)  # d2
+        s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)
+        e = s.x - s.xr
+        eps = np.dot(s.c.flatten(), e)  # d3
 
         # Need these vectors later for plotting
-        self.x_vec.append(self.x.flatten())  # d2
-        self.xr_vec.append(self.xr.flatten())  # d2
-        self.e_vec.append(e.flatten())  # d2
+        s.x_vec.append(s.x.flatten()*(s.delta**2))  # d0
+        s.xr_vec.append(s.xr.flatten()*(s.delta**2))  # d0
+        s.e_vec.append(e.flatten()*(s.delta**2))  # d2
 
         # Regressor Generator split into parts for debugging
-        self.r = (-math.sin(self.t + math.pi / 2) + 1)
-        self.r = encode(self.r, self.delta)  # d1
-        self.r_vec.append(self.r)  # d1
-        p1 = self.x[1][0] / self.delta
-        p2 = ((self.r / self.delta) - self.x[0][0]) * self.beta_0 - self.x[1][0] * self.beta_1
+        s.r = (-math.sin(s.t + math.pi / 2) + 1)
+        s.r = encode(s.r, s.delta)  # d1
+        s.r_vec.append(decode(s.r,s.delta))  # d1
+        p1 = s.x[1][0] / (s.delta**2)
+        p2 = ((s.r / s.delta) - s.x[0][0]) * s.beta_0 - s.x[1][0] * s.beta_1
         reg = np.array([[p1], [p2]])  # d3
-        self.reg_vec.append(reg.flatten())  # d3
+        s.reg_vec.append(mat_decode(reg.flatten(), s.delta**3))  # d3
 
         par_mult = eps * reg  # d6
         par_mult = par_mult.reshape((2, 1))  # Reshape to a 2x1 vector
 
         # Parameter adaptation
-        par_dot = np.dot(self.gains, par_mult)  # d7
-        self.par_dot_vec.append(par_dot.flatten())  # d7
+        par_dot = np.dot(s.gains, par_mult)  # d7
+        s.par_dot_vec.append(par_dot.flatten())  # d7
+        s.par_dot_vec_test.append(mat_decode(par_dot.flatten(), s.delta**7))  # d7
 
         # Integrator
         if k != 1:
-            self.par = mat_encode(self.par, self.delta**7) + np.dot(self.par_dot_vec[k - 1].reshape((2, 1)),
-                                                   self.Ts) # d7 # Ts might have to be different here than rest of code. IDK why.
-        self.par_vec.append(self.par.flatten())  # d7
+            s.par = mat_encode(s.par, s.delta**7) + np.dot(s.par_dot_vec[k - 1].reshape((2, 1)), s.Ts_time) # d7 # Ts might have to be different here than rest of code. IDK why.
+        s.par_vec.append(s.par.flatten()*(s.delta**7))  # d7
 
-        self.u = float(np.dot(reg.transpose(), self.par))  # d10
-        self.u = decode(self.u, self.delta**10)  # d0 bringing back encoding depth to 0
-        self.u_vec.append(self.u)
+        s.u = float(np.dot(reg.transpose(), s.par))  # d10
 
-        self.t = self.t + self.Ts
+        # decoding
+        s.u = decode(s.u, s.delta**10)
+        s.u_vec.append(s.u)
 
-    def ada(self, k):
-        self.xr = np.dot(self.Ar, self.xr) + np.dot(self.Br, self.r)
-        self.x = np.dot(self.A, self.x) + np.dot(self.B, self.u)  # d2 - Only the output of this needs to be encrypted
-        e = self.x - self.xr
-        eps = np.dot(self.c.flatten(), e)
+        s.x = decode(s.x, s.delta**2)
+        s.xr = decode(s.xr, s.delta**2)
+        s.par = decode(s.par, s.delta**7)
+        # recoding for next iteration
+        s.u = encode(s.u, s.delta)
+        s.x = mat_encode(s.x, s.delta)
+        s.xr = mat_encode(s.xr, s.delta)
+
+        s.t = s.t + s.Ts_time
+
+    def ada(s, k):
+        s.xr = np.dot(s.Ar, s.xr) + np.dot(s.Br, s.r)
+        s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d2 - Only the output of this needs to be encrypted
+        e = s.x - s.xr
+        eps = np.dot(s.c.flatten(), e)
 
         # Need these vectors later for plotting
-        self.x_vec.append(self.x.flatten())
-        self.xr_vec.append(self.xr.flatten())
-        self.e_vec.append(e.flatten())
+        s.x_vec.append(s.x.flatten())
+        s.xr_vec.append(s.xr.flatten())
+        s.e_vec.append(e.flatten())
 
         # Regressor Generator split into parts for debugging
-        self.r = (-math.sin(self.t + math.pi / 2) + 1)
-        self.r_vec.append(self.r)
-        reg = np.array([[self.x[1][0]], [(self.r - self.x[0][0]) * self.beta_0 - self.x[1][0] * self.beta_1]])
-        self.reg_vec.append(reg.flatten())
+        s.r = (-math.sin(s.t + math.pi / 2) + 1)
+        s.r_vec.append(s.r)
+        reg = np.array([[s.x[1][0]], [(s.r - s.x[0][0]) * s.beta_0 - s.x[1][0] * s.beta_1]])
+        s.reg_vec.append(reg.flatten())
 
         par_mult = eps * reg
         par_mult = par_mult.reshape((2, 1))  # Reshape to a 2x1 vector
 
         # Parameter adaptation
-        par_dot = np.dot(self.gains, par_mult)
-        self.par_dot_vec.append(par_dot.flatten())
+        par_dot = np.dot(s.gains, par_mult)
+        s.par_dot_vec.append(par_dot.flatten())
 
         # Integrator
         if k != 1:
-            self.par = self.par + np.dot(self.par_dot_vec[k - 1].reshape((2, 1)),
-                               self.Ts)  # Ts might have to be different here than rest of code. IDK why.
-        self.par_vec.append(self.par.flatten())
+            s.par = s.par + np.dot(s.par_dot_vec[k - 1].reshape((2, 1)),
+                               s.Ts)  # Ts might have to be different here than rest of code. IDK why.
+        s.par_vec.append(s.par.flatten())
 
-        self.u = float(np.dot(reg.transpose(), self.par))
-        self.u_vec.append(self.u)
+        s.u = float(np.dot(reg.transpose(), s.par))
+        s.u_vec.append(s.u)
 
-        self.t = self.t + self.Ts
+        s.t = s.t + s.Ts

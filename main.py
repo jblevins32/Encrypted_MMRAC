@@ -36,7 +36,7 @@ reset_par = 1  # Reset Encryption of par
 """
 
 def main():
-    e = Encrypter(enc_method=0)  # input enc_ada, encode_ada, or ada here. Instantiating the class
+    e = Encrypter(enc_method=1)  # input enc_ada, encode_ada, or ada here. Instantiating the class
     e.encrypt()
 
     """    # system parameters

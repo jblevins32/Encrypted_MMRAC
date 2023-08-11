@@ -36,18 +36,12 @@ reset_par = 1  # Reset Encryption of par
 """
 
 def main():
-    e = Encrypter(enc_method=1)  # input enc_ada, encode_ada, or ada here. Instantiating the class
+    e = Encrypter(enc_method=2)  # input enc_ada, encode_ada, or ada here. Instantiating the class
     e.encrypt()
 
     # Analyze the data
     if e.Encrypt == 2:
-        x_vec = mat_dec(e.enc_x_vec, e.kappa, e.p, e.delta * e.delta)
-        xr_vec = mat_dec(e.enc_xr_vec, e.kappa, e.p, e.delta * e.delta)
-        e_vec = mat_dec(e.enc_e_vec, e.kappa, e.p, e.delta * e.delta)
-        par_vec = mat_dec(e.enc_par_vec, e.kappa, e.p, e.delta * e.delta * e.delta * e.delta)
-        par_dot_vec = mat_dec(e.enc_par_dot_vec, e.kappa, e.p, e.delta * e.delta * e.delta)
-        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec, e.u_vec],
-                              ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'enc_data.csv')
+        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'enc_data.csv')
     elif e.Encrypt == 1:
         write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec_test', 'u_vec'], 'encode_data.csv')
     elif e.Encrypt == 0:
@@ -61,7 +55,7 @@ def main():
     plt.ylabel('Tracking Error')
     plt.title('Gains: gam1=100, gam2=10')
     plt.subplot(312)
-    plt.plot(e.t, np.array(e.par_vec))
+    plt.plot(e.t, np.array(e.par_vec)[:, 0])
     plt.xlabel('Time (sec)')
     plt.ylabel('Parameters')
     plt.subplot(313)

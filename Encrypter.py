@@ -13,9 +13,9 @@ class Encrypter():
         s.mod = pgen(s.bit_length, s.rho_, s.p)
         s.reset_xr = 1  # Reset Encryption of xr
         s.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
-        s.reset_par = 1  # Reset Encryption of par
-        s.reset_par_mult = 1
+        s.reset_par_mult = 0
         s.reset_par_dot = 1
+        s.reset_par = 0  # Reset Encryption of par
 
         # system parameters
         s.m = 1
@@ -177,7 +177,7 @@ class Encrypter():
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
             u_depth = 9
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
-            u_depth = 8 # not correct right now
+            u_depth = 3 # not correct right now
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
             u_depth = 4 # not correct right now
 
@@ -259,6 +259,12 @@ class Encrypter():
             s.par_dot_depth = 2
 
         par_dot = np.dot(s.gains, par_mult)  # d6 or d3 or d2
+
+        if s.reset_par_dot == 1:
+            par_dot = mat_decode(par_dot, s.delta ** s.par_dot_depth)  # d0
+            par_dot = mat_encode(par_dot, s.delta)  # d1
+            s.par_dot_depth = 1
+
         s.par_dot_vec.append(par_dot.flatten())  # d6 or d3 or d2 keeping this at d6 or d3 or d2 for par calculation
         s.par_dot_vec_test.append(mat_decode(par_dot.flatten(), s.delta**s.par_dot_depth))  # d0 this one is used for test data
 

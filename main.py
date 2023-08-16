@@ -1,12 +1,10 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from dyersmat import *
-import math
-from compare import *
-from Encrypter import Encrypter
-import pdb
 
-#pdb.set_trace()
+from Encrypter import Encrypter
+from compare import *
+from dyersmat import *
+
+# Walkthrough by numbers with encode and encrypt to compare where it goes wrong.
 
 # Possible solutions:
 # Use variable delta: If I see overflow coming, change delta to accommodate
@@ -36,7 +34,7 @@ reset_par = 1  # Reset Encryption of par
 """
 
 def main():
-    e = Encrypter(enc_method=2)  # input enc_ada, encode_ada, or ada here. Instantiating the class
+    e = Encrypter(enc_method = 0)  # input enc_ada, encode_ada, or ada here. Instantiating the class
     e.encrypt()
 
     # Analyze the data

@@ -1,15 +1,11 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from dyersmat import *
-from integrator import *
 import math
-from compare import *
-import pdb
+
+from integrator import *
 
 class Encrypter():
     def __init__(s, enc_method):
         # Encryption
-        s.bit_length = 128
+        s.bit_length = 256
         s.rho = 1
         s.rho_ = 64
         s.delta = 0.00001
@@ -18,9 +14,6 @@ class Encrypter():
         s.reset_xr = 1  # Reset Encryption of xr
         s.reset_reg_eps = 0  # Reset Encryption of epsilon and regressor generator
         s.reset_par = 0  # Reset Encryption of par
-        s.encode_reset_xr = 1  # Reset encoding of xr
-        s.encode_reset_reg_eps = 1  # Reset encoding of epsilon and regressor generator
-        s.encode_reset_par = 1  # Reset encoding of par
 
         # system parameters
         s.m = 1
@@ -55,6 +48,7 @@ class Encrypter():
         s.r = 0
         s.Ts = .1
         s.enc_Ts = enc(s.Ts, s.kappa, s.p, s.mod, s.delta)
+        s.encode_Ts = encode(s.Ts, s.delta)
         s.Ts_time = s.Ts
         s.enc_par_dot_vec = []
         s.enc_x_vec = []
@@ -80,7 +74,7 @@ class Encrypter():
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
 
     def encrypt(s):
-        for k in range(1, 200):
+        for k in range(1, 35):
             if s.Encrypt == 2:
                 s.enc_ada(k)
             elif s.Encrypt == 1:
@@ -114,7 +108,7 @@ class Encrypter():
         # PLANT: Calculating next output based on the input
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # Only the output of this needs to be encrypted
         enc_x = mat_enc(s.x, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
-        neg_enc_x = mat_enc(-s.x, s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
+        neg_enc_x = mat_enc(-s.x, s.kappa, s.p, s.mod, s.delta)  # d1 for subtracting values later
 
         # Error and filtered error calculation
         enc_e = add(enc_x, neg_enc_xr, s.mod)  # d2
@@ -131,23 +125,22 @@ class Encrypter():
 
         # Regressor Generator split into parts for debugging
         s.r = -math.sin(s.t + math.pi / 2) + 1  # d0
-        enc_r = enc(s.r, s.kappa, s.p, s.mod, s.delta)  # d1
-        v = dec(s.enc_r, s.kappa, s.p, s.delta)
+        s.enc_r = enc(s.r, s.kappa, s.p, s.mod, s.delta)  # d1
         s.r_vec.append(dec(s.enc_r, s.kappa, s.p, s.delta))  # d0
-        p1 = enc(s.x[1][0], s.kappa, s.p, s.mod, s.delta ** 3)  # d3
-        p2 = add(mult(add(enc_r, neg_enc_x[0][0], s.mod), s.enc_beta_0, s.mod), mult(neg_enc_x[1][0], s.enc_beta_1, s.mod), s.mod)
-        enc_reg = np.array([[p1], [p2]])  # d3
-        s.reg_vec.append(mat_dec(enc_reg.flatten(), s.kappa, s.p, s.delta ** 3))
+        p1 = enc(s.x[1][0], s.kappa, s.p, s.mod, s.delta ** 2)  # d2
+        p2 = add(mult(add(s.enc_r, neg_enc_x[0][0], s.mod), s.enc_beta_0, s.mod), mult(neg_enc_x[1][0], s.enc_beta_1, s.mod), s.mod)  # d2
+        enc_reg = np.array([[p1], [p2]])  # d2
+        s.reg_vec.append(mat_dec(enc_reg.flatten(), s.kappa, s.p, s.delta ** 2))  # d0
 
         # Resetting reg and eps because of overflow
         if s.reset_reg_eps == 1:
-            reg = mat_dec(enc_reg, s.kappa, s.p, s.delta ** 3)  # d0
+            reg = mat_dec(enc_reg, s.kappa, s.p, s.delta ** 2)  # d0
             enc_reg = mat_enc(reg, s.kappa, s.p, s.mod, s.delta)  # d1
             eps = dec(enc_eps, s.kappa, s.p, s.delta ** 3)  # d0
             enc_eps = enc(eps, s.kappa, s.p, s.mod, s.delta)  # d1
             s.par_dot_depth = 3
         else:
-            s.par_dot_depth = 7
+            s.par_dot_depth = 6
 
         # Parameter adaptation
         enc_par_mult = mult(enc_eps, enc_reg, s.mod)  # d6 or d2
@@ -155,7 +148,7 @@ class Encrypter():
         s.enc_par_dot_vec.append(enc_par_dot.flatten())  # d7 or d3
         s.par_dot_vec_test.append(mat_dec(enc_par_dot.flatten(), s.kappa, s.p, s.delta ** s.par_dot_depth))  # d0
 
-        s.enc_par = integrator(k, s.enc_par, 2, s.enc_par_dot_vec, s.enc_Ts, s.mod)
+        s.enc_par = integrator(k, s.enc_par, 2, s.enc_par_dot_vec, s.enc_Ts, s.mod) # increases encode depth by 1
         s.par_vec.append(mat_dec(s.enc_par.flatten(), s.kappa, s.p, s.delta ** (s.par_dot_depth+1)))  # d0
 
         # Resetting par because of overflow
@@ -168,11 +161,11 @@ class Encrypter():
         if (s.reset_par == 1) & (s.reset_reg_eps == 1):
             u_depth = 2
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
-            u_depth = 10
+            u_depth = 9
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
-            u_depth = 8
+            u_depth = 8 # not correct right now
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
-            u_depth = 4
+            u_depth = 4 # not correct right now
 
         # Decrypting
         s.u = dec(enc_u, s.kappa, s.p, s.delta ** u_depth)
@@ -182,7 +175,7 @@ class Encrypter():
         if s.reset_par == 1:
             s.par = mat_dec(s.enc_par, s.kappa, s.p, s.delta)  # d0
         elif s.reset_par == 0:
-            s.par = mat_dec(s.enc_par, s.kappa, s.p, s.delta ** s.par_dot_depth)  # d0
+            s.par = mat_dec(s.enc_par, s.kappa, s.p, s.delta ** (s.par_dot_depth + 1))  # d0
         s.enc_par = mat_enc(s.par, s.kappa, s.p, s.mod, s.delta ** (s.par_dot_depth+1))
 
         s.x = mat_dec(enc_x, s.kappa, s.p, s.delta**2)  # d0
@@ -205,12 +198,13 @@ class Encrypter():
         s.xr = np.dot(s.Ar, s.xr) + np.dot(s.Br, s.r)  # d2
 
         # For resetting xr
-        if s.encode_reset_xr == 1:
+        if s.reset_xr == 1:
             s.xr = mat_decode(s.xr, s.delta**2)  # d0
             s.xr = mat_encode(s.xr, s.delta**2)  # d2
 
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0
         s.x = mat_encode(s.x, s.delta**2)  # d2
+        x_d1 = mat_encode(s.x, s.delta)  # d2
         e = s.x - s.xr  # d2
         eps = np.dot(s.c.flatten(), e)  # d3
 
@@ -225,47 +219,47 @@ class Encrypter():
 
         # Regressor Generator split into parts for debugging
         s.r = (-math.sin(s.t + math.pi / 2) + 1)  # d0
-        s.r = encode(s.r, s.delta**2)  # d2
+        s.r = encode(s.r, s.delta)  # d1
         s.r_vec.append(decode(s.r, s.delta))  # d1
-        p1 = encode(s.x[1][0], s.delta)  # d3
-        p2 = ((s.r - s.x[0][0]) * s.beta_0) - (s.x[1][0] * s.beta_1)  # d3
-        reg = np.array([[p1], [p2]])  # d3
-        s.reg_vec.append(mat_decode(reg.flatten(), s.delta**3))  # d0
+        p1 = s.x[1][0]  # d2
+        p2 = ((s.r - x_d1[0][0]) * s.beta_0) - (x_d1[1][0] * s.beta_1)  # d2
+        reg = np.array([[p1], [p2]])  # d2
+        s.reg_vec.append(mat_decode(reg.flatten(), s.delta**2))  # d0
 
         # Resetting reg and eps because of overflow
-        if s.encode_reset_reg_eps == 1:
-            reg = mat_decode(reg, s.delta ** 3)  # d0
+        if s.reset_reg_eps == 1:
+            reg = mat_decode(reg, s.delta ** 2)  # d0
             reg = mat_encode(reg, s.delta)  # d1
             eps = decode(eps, s.delta ** 3)  # d0
             eps = encode(eps, s.delta)  # d1
             s.par_dot_depth = 3
         else:
-            s.par_dot_depth = 7
+            s.par_dot_depth = 6
 
         # Parameter adaptation
-        par_mult = eps * reg  # d6 or d2
+        par_mult = eps * reg  # d5 or d2
         par_mult = par_mult.reshape((2, 1))  # Reshape to a 2x1 vector
 
-        par_dot = np.dot(s.gains, par_mult)  # d7 or d3
-        s.par_dot_vec.append(par_dot.flatten())  # d7 or d3 keeping this at d7 or d3 for par calculation
+        par_dot = np.dot(s.gains, par_mult)  # d6 or d3
+        s.par_dot_vec.append(par_dot.flatten())  # d6 or d3 keeping this at d6 or d3 for par calculation
         s.par_dot_vec_test.append(mat_decode(par_dot.flatten(), s.delta**s.par_dot_depth))  # d0 this one is used for test data
 
-        s.par = integrator(k, s.par, 1, s.par_dot_vec, s.Ts_time, s.mod)
-        s.par_vec.append(s.par.flatten()*(s.delta**s.par_dot_depth))  # d0
+        s.par = integrator(k, s.par, 1, s.par_dot_vec, s.encode_Ts, s.mod)
+        s.par_vec.append(s.par.flatten()*(s.delta**(s.par_dot_depth + 1)))  # d0
 
-        if s.encode_reset_par == 1:
-            s.par = mat_decode(s.par, s.delta ** s.par_dot_depth)  # d0
+        if s.reset_par == 1:
+            s.par = mat_decode(s.par, s.delta ** (s.par_dot_depth + 1))  # d0
             s.par = mat_encode(s.par, s.delta)  # d1
 
-        s.u = float(np.dot(reg.transpose(), s.par))  # d10 or d2
+        s.u = float(np.dot(reg.transpose(), s.par))  # d9 or d2
 
-        if (s.encode_reset_par == 1) & (s.encode_reset_reg_eps == 1):
+        if (s.reset_par == 1) & (s.reset_reg_eps == 1):
             u_depth = 2
-        elif (s.encode_reset_par == 0) & (s.encode_reset_reg_eps == 0):
-            u_depth = 10
-        elif (s.encode_reset_par == 0) & (s.encode_reset_reg_eps == 1):
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
+            u_depth = 9
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
             u_depth = 8
-        elif (s.encode_reset_par == 1) & (s.encode_reset_reg_eps == 0):
+        elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
             u_depth = 4
 
         # decoding
@@ -273,11 +267,11 @@ class Encrypter():
         s.u_vec.append(s.u)
 
         # setting up par for next iteration
-        if s.encode_reset_par == 1:
+        if s.reset_par == 1:
             s.par = mat_decode(s.par, s.delta)  # d0
-        elif s.encode_reset_par == 0:
-            s.par = mat_decode(s.par, s.delta**s.par_dot_depth)  # d0
-        s.par = mat_encode(s.par, s.delta**s.par_dot_depth)
+        elif s.reset_par == 0:
+            s.par = mat_decode(s.par, s.delta**(s.par_dot_depth+1))  # d0
+        s.par = mat_encode(s.par, s.delta**(s.par_dot_depth+1))
 
         s.x = mat_decode(s.x, s.delta**2)  # d0
         s.xr = mat_decode(s.xr, s.delta**2)  # d0 Have to decode all the way before encoding again or the numbers will be too big

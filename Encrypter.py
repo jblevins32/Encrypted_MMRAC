@@ -11,7 +11,7 @@ class Encrypter():
         s.delta = 0.00001
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
-        s.reset_xr = 1  # Reset Encryption of xr
+        s.reset_xr = 0  # Reset Encryption of xr
         s.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
         s.reset_par_mult = 0
         s.reset_par_dot = 1
@@ -106,6 +106,10 @@ class Encrypter():
             s.xr = mat_dec(s.enc_xr, s.kappa, s.p, s.delta ** 2)  # d0
             neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
             s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
+        else:
+            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
+            neg_enc_r = enc(-s.r, s.kappa, s.p, s.mod, s.delta)  # d1
+            neg_enc_xr = add(mat_mult(s.enc_Ar, neg_enc_xr, s.mod), mat_mult(s.enc_Br, neg_enc_r, s.mod), s.mod)  # d2 for subtracting values later
 
         # PLANT: Calculating next output based on the input
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0 Only the output of this needs to be encrypted
@@ -162,7 +166,7 @@ class Encrypter():
         s.enc_par_dot_vec.append(enc_par_dot.flatten())  # d6 or d3
         s.par_dot_vec_test.append(mat_dec(enc_par_dot.flatten(), s.kappa, s.p, s.delta ** s.par_dot_depth))  # d0
 
-        s.enc_par = integrator(k, s.enc_par, 2, s.enc_par_dot_vec, s.enc_Ts, s.mod) # increases encode depth by 1
+        s.enc_par = integrator(k, s.enc_par, 2, s.enc_par_dot_vec, s.enc_Ts, s.mod)  # increases encode depth by 1
         s.par_vec.append(mat_dec(s.enc_par.flatten(), s.kappa, s.p, s.delta ** (s.par_dot_depth + 1)))  # d0
 
         # Resetting par because of overflow
@@ -176,10 +180,14 @@ class Encrypter():
             u_depth = 2
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
             u_depth = 9
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 1) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
+            u_depth = 5
+        elif (s.reset_par == 1) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
+            u_depth = 3
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
-            u_depth = 3 # not correct right now
+            u_depth = 3  # not correct right now
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
-            u_depth = 4 # not correct right now
+            u_depth = 4  # not correct right now
 
         # Decrypting
         s.u = dec(enc_u, s.kappa, s.p, s.delta ** u_depth)
@@ -281,10 +289,14 @@ class Encrypter():
             u_depth = 2
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
             u_depth = 9
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 1) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
+            u_depth = 5
+        elif (s.reset_par == 1) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
+            u_depth = 3
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
-            u_depth = 8
+            u_depth = 3  # not correct right now
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
-            u_depth = 4
+            u_depth = 4  # not correct right now
 
         # decoding
         s.u = decode(s.u, s.delta ** u_depth)  # d0

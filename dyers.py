@@ -8,18 +8,19 @@ from eclib.randutils import *
 from eclib.primeutils import *
 from eclib.modutils import *
 from math import floor
+from prime_list import *
 
 def keygen(bit_length, rho, rho_):
-    p = get_prime(bit_length)
+    p = get_prime_list(bit_length)
     nu = rho_ - rho
-    kappa = get_prime(nu)
+    kappa = get_prime_list(nu)
 
     return kappa, p
 
 
 def pgen(bit_length, rho_, p):
     eta = bit_length ** 2 // rho_ - bit_length
-    q = get_prime(eta)
+    q = get_prime_list(eta)
     modulus = p * q
 
     return modulus

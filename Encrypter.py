@@ -11,8 +11,8 @@ class Encrypter():
         s.delta = 0.00001
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
-        s.reset_xr = 0  # Reset Encryption of xr
-        s.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
+        s.reset_xr = 1  # Reset Encryption of xr. Need to have this on right now since eps is calculated outside the plant
+        s.reset_reg_eps = 0  # Reset Encryption of epsilon and regressor generator
         s.reset_par_mult = 0
         s.reset_par_dot = 1
         s.reset_par = 0  # Reset Encryption of par
@@ -105,20 +105,24 @@ class Encrypter():
         if s.reset_xr == 1:  # for the purpose of removing encryption depth, not encoding depth
             s.xr = mat_dec(s.enc_xr, s.kappa, s.p, s.delta ** 2)  # d0
             neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
+            neg_enc_xr_c = enc(np.dot(s.c, -s.xr), s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
             s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
         else:
-            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
+            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta)  # d1 calculating neg xr for this iteration
             neg_enc_r = enc(-s.r, s.kappa, s.p, s.mod, s.delta)  # d1
             neg_enc_xr = add(mat_mult(s.enc_Ar, neg_enc_xr, s.mod), mat_mult(s.enc_Br, neg_enc_r, s.mod), s.mod)  # d2 for subtracting values later
+            #having a neg_enc_xr_c is very difficult
 
         # PLANT: Calculating next output based on the input
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0 Only the output of this needs to be encrypted
+        x_c = np.dot(s.c, s.x)
         enc_x = mat_enc(s.x, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
+        enc_x_c = enc(x_c, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
         neg_enc_x = mat_enc(-s.x, s.kappa, s.p, s.mod, s.delta)  # d1 for subtracting values later in reg
 
         # Error and filtered error calculation
         enc_e = add(enc_x, neg_enc_xr, s.mod)  # d2
-        enc_eps = mat_mult(s.enc_c, enc_e, s.mod)  # d3
+        enc_eps = add(enc_x_c, neg_enc_xr_c, s.mod)  # d2
 
         # Testing for if tolerated error is reached
         if abs(dec(enc_e[0][0], s.kappa, s.p, s.delta ** 2)) <= s.e_tol:
@@ -142,21 +146,21 @@ class Encrypter():
         if s.reset_reg_eps == 1:
             reg = mat_dec(enc_reg, s.kappa, s.p, s.delta ** 2)  # d0
             enc_reg = mat_enc(reg, s.kappa, s.p, s.mod, s.delta)  # d1
-            eps = dec(enc_eps, s.kappa, s.p, s.delta ** 3)  # d0
+            eps = dec(enc_eps, s.kappa, s.p, s.delta ** 2)  # d0
             enc_eps = enc(eps, s.kappa, s.p, s.mod, s.delta)  # d1
             s.par_dot_depth = 3
         else:
-            s.par_dot_depth = 6
+            s.par_dot_depth = 5
 
         # Parameter adaptation
-        enc_par_mult = mult(enc_eps, enc_reg, s.mod)  # d5 or d2
+        enc_par_mult = mult(enc_eps, enc_reg, s.mod)  # d4 or d2
 
         if s.reset_par_mult == 1:
             par_mult = mat_dec(enc_par_mult, s.kappa, s.p, s.delta**(s.par_dot_depth - 1))  # d0
             enc_par_mult = mat_enc(par_mult, s.kappa, s.p, s.mod, s.delta)  # d1
             s.par_dot_depth = 2
 
-        enc_par_dot = mat_mult(s.enc_gains, enc_par_mult, s.mod)  # d6 or d3
+        enc_par_dot = mat_mult(s.enc_gains, enc_par_mult, s.mod)  # d5 or d3
 
         if s.reset_par_dot == 1:
             par_dot = mat_dec(enc_par_dot, s.kappa, s.p, s.delta ** s.par_dot_depth)  # d0
@@ -178,6 +182,8 @@ class Encrypter():
 
         if (s.reset_par == 1) & (s.reset_reg_eps == 1):
             u_depth = 2
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 1):
+            u_depth = 4
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
             u_depth = 9
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):

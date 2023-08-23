@@ -8,11 +8,11 @@ class Encrypter():
         s.bit_length = 500
         s.rho = 1
         s.rho_ = 64
-        s.delta = 0.00001
+        s.delta = 0.000001
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
         s.reset_xr = 1  # Reset Encryption of xr. Need to have this on right now since eps is calculated outside the plant
-        s.reset_reg_eps = 0  # Reset Encryption of epsilon and regressor generator
+        s.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
         s.reset_par_mult = 0
         s.reset_par_dot = 1
         s.reset_par = 0  # Reset Encryption of par
@@ -146,9 +146,11 @@ class Encrypter():
         if s.reset_reg_eps == 1:
             reg = mat_dec(enc_reg, s.kappa, s.p, s.delta ** 2)  # d0
             enc_reg = mat_enc(reg, s.kappa, s.p, s.mod, s.delta)  # d1
-            eps = dec(enc_eps, s.kappa, s.p, s.delta ** 2)  # d0
-            enc_eps = enc(eps, s.kappa, s.p, s.mod, s.delta)  # d1
-            s.par_dot_depth = 3
+            s.par_dot_depth = 4
+
+            # eps = dec(enc_eps, s.kappa, s.p, s.delta ** 2)  # d0
+            # enc_eps = enc(eps, s.kappa, s.p, s.mod, s.delta)  # d1
+            # s.par_dot_depth = 3
         else:
             s.par_dot_depth = 5
 
@@ -214,7 +216,6 @@ class Encrypter():
 
     def encode_ada(s, k):
         if k == 1:
-            s.c = mat_encode(s.c, s.delta)  # d1
             s.beta_0 = encode(s.beta_0, s.delta)  # d1
             s.beta_1 = encode(s.beta_1, s.delta)  # d1
             s.gains = mat_encode(s.gains, s.delta)  # d1
@@ -224,17 +225,14 @@ class Encrypter():
             s.r = encode(s.r, s.delta)  # d1
 
         s.xr = np.dot(s.Ar, s.xr) + np.dot(s.Br, s.r)  # d2
-
-        # For resetting xr
-        if s.reset_xr == 1:
-            s.xr = mat_decode(s.xr, s.delta**2)  # d0
-            s.xr = mat_encode(s.xr, s.delta**2)  # d2
+        s.xr_c = np.dot(s.c, s.xr)  # d2
 
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0
+        s.x_c = mat_encode(np.dot(s.c, s.x), s.delta ** 2)
         x_d1 = mat_encode(s.x, s.delta)  # d2
-        s.x = mat_encode(s.x, s.delta**2)  # d2
+        s.x = mat_encode(s.x, s.delta ** 2)  # d2
         e = s.x - s.xr  # d2
-        eps = np.dot(s.c.flatten(), e)  # d3
+        eps = s.x_c - s.xr_c  # d2
 
         # Testing for if tolerated error is reached
         if abs(decode(e[0][0],s.delta**2)) <= s.e_tol:
@@ -248,7 +246,7 @@ class Encrypter():
         # Regressor Generator split into parts for debugging
         s.r = (-math.sin(s.t + math.pi / 2) + 1)  # d0
         s.r = encode(s.r, s.delta)  # d1
-        s.r_vec.append(decode(s.r, s.delta))  # d1
+        s.r_vec.append(decode(s.r, s.delta))  # d0
         p1 = s.x[1][0]  # d2
         p2 = ((s.r - x_d1[0][0]) * s.beta_0) - (x_d1[1][0] * s.beta_1)  # d2
         reg = np.array([[p1], [p2]])  # d2
@@ -258,11 +256,11 @@ class Encrypter():
         if s.reset_reg_eps == 1:
             reg = mat_decode(reg, s.delta ** 2)  # d0
             reg = mat_encode(reg, s.delta)  # d1
-            eps = decode(eps, s.delta ** 3)  # d0
-            eps = encode(eps, s.delta)  # d1
-            s.par_dot_depth = 3
+            # eps = decode(eps, s.delta ** 2)  # d0
+            # eps = encode(eps, s.delta)  # d1
+            s.par_dot_depth = 4
         else:
-            s.par_dot_depth = 6
+            s.par_dot_depth = 5
 
         # Parameter adaptation
         par_mult = eps * reg  # d5 or d2
@@ -293,6 +291,8 @@ class Encrypter():
 
         if (s.reset_par == 1) & (s.reset_reg_eps == 1):
             u_depth = 2
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 1):
+            u_depth = 4
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
             u_depth = 9
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):

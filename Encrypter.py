@@ -1,5 +1,5 @@
 import math
-
+import time
 from integrator import *
 
 class Encrypter():
@@ -8,11 +8,11 @@ class Encrypter():
         s.bit_length = 500
         s.rho = 1
         s.rho_ = 64
-        s.delta = 0.000001
+        s.delta = 0.0001
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
         s.reset_xr = 1  # Reset Encryption of xr. Need to have this on right now since eps is calculated outside the plant
-        s.reset_reg_eps = 1  # Reset Encryption of epsilon and regressor generator
+        s.reset_reg_eps = 0  # Reset Encryption of epsilon and regressor generator
         s.reset_par_mult = 0
         s.reset_par_dot = 1
         s.reset_par = 0  # Reset Encryption of par
@@ -42,6 +42,8 @@ class Encrypter():
         # Other variables
         # s.c = np.array([[2, 3.125]])
         s.e_tol = .001  # tolerable error
+        s.e_flag = 0
+        s.ss_k = 0
         s.c = np.array([[.5, 1]])
         s.gam1 = 15
         s.gam2 = 1
@@ -76,6 +78,7 @@ class Encrypter():
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
 
     def encrypt(s):
+        start_time = time.time()
         for k in range(1, 100):
             if s.Encrypt == 2:
                 s.enc_ada(k)
@@ -84,6 +87,10 @@ class Encrypter():
             elif s.Encrypt == 0:
                 s.ada(k)
         s.t = np.arange(s.Ts, (k+1) * s.Ts, s.Ts)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Execution time: {execution_time} seconds")
+        print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k}")
 
     def enc_ada(s, k):
         # encryption of matrices and variables
@@ -105,7 +112,7 @@ class Encrypter():
         if s.reset_xr == 1:  # for the purpose of removing encryption depth, not encoding depth
             s.xr = mat_dec(s.enc_xr, s.kappa, s.p, s.delta ** 2)  # d0
             neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
-            neg_enc_xr_c = enc(np.dot(s.c, -s.xr), s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
+            neg_enc_xr_c = mat_enc(s.gains * np.dot(s.c, -s.xr), s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
             s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
         else:
             neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta)  # d1 calculating neg xr for this iteration
@@ -115,9 +122,9 @@ class Encrypter():
 
         # PLANT: Calculating next output based on the input
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0 Only the output of this needs to be encrypted
-        x_c = np.dot(s.c, s.x)
+        x_c = s.gains * np.dot(s.c, s.x)
         enc_x = mat_enc(s.x, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
-        enc_x_c = enc(x_c, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
+        enc_x_c = mat_enc(x_c, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
         neg_enc_x = mat_enc(-s.x, s.kappa, s.p, s.mod, s.delta)  # d1 for subtracting values later in reg
 
         # Error and filtered error calculation
@@ -126,7 +133,12 @@ class Encrypter():
 
         # Testing for if tolerated error is reached
         if abs(dec(enc_e[0][0], s.kappa, s.p, s.delta ** 2)) <= s.e_tol:
+            if s.e_flag == 0:
+                s.ss_k = k  # iteration at which e_tol remains true
+            s.e_flag = 1
             print(f"State 1 error becomes < {s.e_tol} at iteration {k}, time {round(s.t, 2)}")
+        else:
+            s.e_flag = 0
 
         # Need these vectors later for plotting
         s.x_vec.append(mat_dec(enc_x.flatten(), s.kappa, s.p, s.delta ** 2))  # d0
@@ -146,23 +158,21 @@ class Encrypter():
         if s.reset_reg_eps == 1:
             reg = mat_dec(enc_reg, s.kappa, s.p, s.delta ** 2)  # d0
             enc_reg = mat_enc(reg, s.kappa, s.p, s.mod, s.delta)  # d1
+            eps = dec(enc_eps, s.kappa, s.p, s.delta ** 2)  # d0
+            enc_eps = enc(eps, s.kappa, s.p, s.mod, s.delta)  # d1
+            s.par_dot_depth = 2
+        else:
             s.par_dot_depth = 4
 
-            # eps = dec(enc_eps, s.kappa, s.p, s.delta ** 2)  # d0
-            # enc_eps = enc(eps, s.kappa, s.p, s.mod, s.delta)  # d1
-            # s.par_dot_depth = 3
-        else:
-            s.par_dot_depth = 5
-
         # Parameter adaptation
-        enc_par_mult = mult(enc_eps, enc_reg, s.mod)  # d4 or d2
+        enc_par_dot = mat_mult(enc_eps, enc_reg, s.mod)  # d4 or d2
 
-        if s.reset_par_mult == 1:
-            par_mult = mat_dec(enc_par_mult, s.kappa, s.p, s.delta**(s.par_dot_depth - 1))  # d0
-            enc_par_mult = mat_enc(par_mult, s.kappa, s.p, s.mod, s.delta)  # d1
-            s.par_dot_depth = 2
-
-        enc_par_dot = mat_mult(s.enc_gains, enc_par_mult, s.mod)  # d5 or d3
+        # if s.reset_par_mult == 1:
+        #     par_mult = mat_dec(enc_par_mult, s.kappa, s.p, s.delta**(s.par_dot_depth - 1))  # d0
+        #     enc_par_mult = mat_enc(par_mult, s.kappa, s.p, s.mod, s.delta)  # d1
+        #     s.par_dot_depth = 2
+        #
+        # enc_par_dot = mat_mult(s.enc_gains, enc_par_mult, s.mod)  # d5 or d3
 
         if s.reset_par_dot == 1:
             par_dot = mat_dec(enc_par_dot, s.kappa, s.p, s.delta ** s.par_dot_depth)  # d0
@@ -193,7 +203,7 @@ class Encrypter():
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
             u_depth = 3
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
-            u_depth = 3  # not correct right now
+            u_depth = 4  # not correct right now
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
             u_depth = 4  # not correct right now
 
@@ -218,17 +228,16 @@ class Encrypter():
         if k == 1:
             s.beta_0 = encode(s.beta_0, s.delta)  # d1
             s.beta_1 = encode(s.beta_1, s.delta)  # d1
-            s.gains = mat_encode(s.gains, s.delta)  # d1
             s.Ar = mat_encode(s.Ar, s.delta)  # d1
             s.xr = mat_encode(s.xr, s.delta)  # d1
             s.Br = mat_encode(s.Br, s.delta)  # d1
             s.r = encode(s.r, s.delta)  # d1
 
         s.xr = np.dot(s.Ar, s.xr) + np.dot(s.Br, s.r)  # d2
-        s.xr_c = np.dot(s.c, s.xr)  # d2
+        s.xr_c = s.gains * np.dot(s.c, s.xr)  # d2
 
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0
-        s.x_c = mat_encode(np.dot(s.c, s.x), s.delta ** 2)
+        s.x_c = mat_encode(s.gains * np.dot(s.c, s.x), s.delta ** 2)
         x_d1 = mat_encode(s.x, s.delta)  # d2
         s.x = mat_encode(s.x, s.delta ** 2)  # d2
         e = s.x - s.xr  # d2
@@ -236,7 +245,12 @@ class Encrypter():
 
         # Testing for if tolerated error is reached
         if abs(decode(e[0][0],s.delta**2)) <= s.e_tol:
+            if s.e_flag == 0:
+                s.ss_k = k  # iteration at which e_tol remains true
+            s.e_flag = 1
             print(f"State 1 error becomes < {s.e_tol} at iteration {k}, time {round(s.t, 2)}")
+        else:
+            s.e_flag = 0
 
         # Need these vectors later for plotting
         s.x_vec.append(s.x.flatten()*(s.delta**2))  # d0
@@ -256,21 +270,21 @@ class Encrypter():
         if s.reset_reg_eps == 1:
             reg = mat_decode(reg, s.delta ** 2)  # d0
             reg = mat_encode(reg, s.delta)  # d1
-            # eps = decode(eps, s.delta ** 2)  # d0
-            # eps = encode(eps, s.delta)  # d1
-            s.par_dot_depth = 4
+            eps = mat_decode(eps, s.delta ** 2)  # d0
+            eps = mat_encode(eps, s.delta)  # d1
+            s.par_dot_depth = 2
         else:
-            s.par_dot_depth = 5
+            s.par_dot_depth = 4
 
         # Parameter adaptation
-        par_mult = eps * reg  # d5 or d2
+        par_dot = np.dot(eps, reg)  # d5 or d2
 
-        if s.reset_par_mult == 1:
-            par_mult = mat_decode(par_mult, s.delta**(s.par_dot_depth - 1))  # d0
-            par_mult = mat_encode(par_mult, s.delta)  # d1
-            s.par_dot_depth = 2
-
-        par_dot = np.dot(s.gains, par_mult)  # d6 or d3 or d2
+        # if s.reset_par_mult == 1:
+        #     par_mult = mat_decode(par_mult, s.delta**(s.par_dot_depth - 1))  # d0
+        #     par_mult = mat_encode(par_mult, s.delta)  # d1
+        #     s.par_dot_depth = 2
+        #
+        # par_dot = np.dot(s.gains, par_mult)  # d6 or d3 or d2
 
         if s.reset_par_dot == 1:
             par_dot = mat_decode(par_dot, s.delta ** s.par_dot_depth)  # d0
@@ -300,7 +314,7 @@ class Encrypter():
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
             u_depth = 3
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1):
-            u_depth = 3  # not correct right now
+            u_depth = 4  # not correct right now
         elif (s.reset_par == 1) & (s.reset_reg_eps == 0):
             u_depth = 4  # not correct right now
 
@@ -326,6 +340,15 @@ class Encrypter():
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d2 - Only the output of this needs to be encrypted
         e = s.x - s.xr
         eps = np.dot(s.c.flatten(), e)
+
+        # Testing for if tolerated error is reached
+        if abs(e[0][0]) <= s.e_tol:
+            if s.e_flag == 0:
+                s.ss_k = k  # iteration at which e_tol remains true
+            s.e_flag = 1
+            print(f"State 1 error becomes < {s.e_tol} at iteration {k}, time {round(s.t, 2)}")
+        else:
+            s.e_flag = 0
 
         # Need these vectors later for plotting
         s.x_vec.append(s.x.flatten())

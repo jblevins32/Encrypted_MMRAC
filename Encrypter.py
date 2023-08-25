@@ -5,7 +5,7 @@ from integrator import *
 class Encrypter():
     def __init__(s, enc_method):
         # Encryption
-        s.bit_length = 500
+        s.bit_length = 600
         s.rho = 1
         s.rho_ = 64
         s.delta = 0.0001
@@ -20,20 +20,30 @@ class Encrypter():
         # system parameters
         s.m = 1
         s.b = 2
-        s.k = 0
+        s.k = 1
 
         s.zeta = .8  # Damping Ratio
-        s.wn = .5  # Natural Frequency
-        s.beta_1 = 1  # 2 * zeta * wn
-        s.beta_0 = 1  # wn * wn
+        s.wn = 5  # Natural Frequency
+        s.beta_1 = 2*s.zeta*s.wn  # 1
+        s.beta_0 = s.wn * s.wn  # 1
 
-        # Creating plant state space
+        # Creating continuous plant state space
         s.A = np.array([[0, 1], [-s.k / s.m, -s.b / s.m]])
         s.B = np.array([[0], [1 / s.m]])
 
-        # Creating reference state space
+        # Creating continuous reference state space
         s.Ar = np.array([[0, 1], [-s.beta_0, -s.beta_1]])
         s.Br = np.array([[0], [s.beta_0]])
+
+        # Converting to discrete
+        # No spring constant
+        # s.A = np.array([[1, .09063], [0, .8187]])
+        # s.B = np.array([[.004683], [.09063]])
+        # With spring constant, but adaptive does not account for this
+        s.A = np.array([[.9953, .09048], [-.09048, .8144]])
+        s.B = np.array([[.004679], [.09048]])
+        s.Ar = np.array([[.9045, .06603], [-1.651, .3763]])
+        s.Br = np.array([[.09549], [1.651]])
 
         # Initial Conditions
         s.x = np.array([[0], [0]])

@@ -1,7 +1,9 @@
 import math
 import time
 from integrator import *
-from decimal import Decimal, getcontext
+from decimal import Decimal
+from disc import *
+from scipy.linalg import solve_discrete_lyapunov
 
 class Encrypter():
     def __init__(s, enc_method):
@@ -26,42 +28,39 @@ class Encrypter():
         s.zeta = .8  # Damping Ratio
         s.wn = 5  # Natural Frequency
         s.beta_1 = 2*s.zeta*s.wn  # 1
-        s.beta_0 = s.wn * s.wn  # 1
+        s.beta_2 = s.wn * s.wn  # 1
 
         # Creating continuous plant state space
         s.A = np.array([[0, 1], [-s.k / s.m, -s.b / s.m]])
         s.B = np.array([[0], [1 / s.m]])
+        s.C = np.eye(2)
+        s.D = np.array([[0], [0]])
 
         # Creating continuous reference state space
-        s.Ar = np.array([[0, 1], [-s.beta_0, -s.beta_1]])
-        s.Br = np.array([[0], [s.beta_0]])
+        s.Ar = np.array([[0, 1], [-s.beta_2, -s.beta_1]])
+        s.Br = np.array([[0], [s.beta_2]])
+        s.Cr = np.eye(2)
+        s.Dr = np.array([[0], [0]])
 
         # Converting to discrete
-        # No spring constant
-        s.A = np.array([[1, .09063], [0, .8187]])
-        s.B = np.array([[.004683], [.09063]])
-        # With spring constant, but adaptive does not account for this
-        # s.A = np.array([[.9953, .09048], [-.09048, .8144]])
-        # s.B = np.array([[.004679], [.09048]])
-        s.Ar = np.array([[.9045, .06603], [-1.651, .3763]])
-        s.Br = np.array([[.09549], [1.651]])
+        s.Ts = .01
+        s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
+        s.Ar, s.Br, s.Cr, s.Dr = disc(s.Ar, s.Br, s.Cr, s.Dr, s.Ts)
 
         # Initial Conditions
         s.x = np.array([[0], [0]])
         s.xr = np.array([[0], [0]])
 
         # Other variables
-        # s.c = np.array([[2, 3.125]])
         s.e_tol = .02  # tolerable error
         s.e_flag = 0
         s.ss_k = 0
-        s.c = np.array([[0.388116177242762, 1.280453240431614]])
+        s.c = np.dot([0, 1], solve_discrete_lyapunov(np.transpose(s.Ar), np.eye(2))).reshape(1, -1)
         s.gam1 = 100
         s.gam2 = 40
         s.gains = np.array([[-s.gam1, 0], [0, -s.gam2]])
         s.u = 0
         s.r = 0
-        s.Ts = .01
         s.enc_Ts = enc(s.Ts, s.kappa, s.p, s.mod, s.delta)
         s.encode_Ts = encode(s.Ts, s.delta)
         s.Ts_time = s.Ts
@@ -109,7 +108,7 @@ class Encrypter():
         # encryption of matrices and variables
         if k == 1:
             s.enc_c = mat_enc(s.c, s.kappa, s.p, s.mod, s.delta)  # d1
-            s.enc_beta_0 = enc(s.beta_0, s.kappa, s.p, s.mod, s.delta)  # d1
+            s.enc_beta_2 = enc(s.beta_2, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_beta_1 = enc(s.beta_1, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_Ar = mat_enc(s.Ar, s.kappa, s.p, s.mod, s.delta)  # d1
@@ -162,8 +161,8 @@ class Encrypter():
         s.r = -math.sin(s.t + math.pi / 2) + 1  # d0
         s.enc_r = enc(s.r, s.kappa, s.p, s.mod, s.delta)  # d1
         s.r_vec.append(dec(s.enc_r, s.kappa, s.p, s.delta))  # d0
-        p1 = enc_x[1][0]  # d2
-        p2 = add(mult(add(s.enc_r, neg_enc_x[0][0], s.mod), s.enc_beta_0, s.mod), mult(neg_enc_x[1][0], s.enc_beta_1, s.mod), s.mod)  # d2
+        p1 = add(mult(add(s.enc_r, neg_enc_x[0][0], s.mod), s.enc_beta_2, s.mod), mult(neg_enc_x[1][0], s.enc_beta_1, s.mod), s.mod)  # d2
+        p2 = enc_x[1][0]  # d2
         enc_reg = np.array([[p1], [p2]])  # d2
         s.reg_vec.append(mat_dec(enc_reg.flatten(), s.kappa, s.p, s.delta ** 2))  # d0
 
@@ -241,7 +240,7 @@ class Encrypter():
 
     def encode_ada(s, k):
         if k == 1:
-            s.beta_0 = encode(s.beta_0, s.delta)  # d1
+            s.beta_2 = encode(s.beta_2, s.delta)  # d1
             s.beta_1 = encode(s.beta_1, s.delta)  # d1
             s.Ar = mat_encode(s.Ar, s.delta)  # d1
             s.xr = mat_encode(s.xr, s.delta)  # d1
@@ -277,7 +276,7 @@ class Encrypter():
         s.r = encode(s.r, s.delta)  # d1
         s.r_vec.append(decode(s.r, s.delta))  # d0
         p1 = s.x[1][0]  # d2
-        p2 = ((s.r - x_d1[0][0]) * s.beta_0) - (x_d1[1][0] * s.beta_1)  # d2
+        p2 = ((s.r - x_d1[0][0]) * s.beta_2) - (x_d1[1][0] * s.beta_1)  # d2
         reg = np.array([[p1], [p2]])  # d2
         s.reg_vec.append(mat_decode(reg.flatten(), s.delta**2))  # d0
 
@@ -374,7 +373,7 @@ class Encrypter():
         # Regressor Generator split into parts for debugging
         s.r = (-math.sin(s.t + math.pi / 2) + 1)
         s.r_vec.append(s.r)
-        reg = np.array([[s.x[1][0]], [(s.r - s.x[0][0]) * s.beta_0 - s.x[1][0] * s.beta_1]])
+        reg = np.array([[s.x[1][0]], [(s.r - s.x[0][0]) * s.beta_2 - s.x[1][0] * s.beta_1]])
         s.reg_vec.append(reg.flatten())
 
         par_mult = eps * reg

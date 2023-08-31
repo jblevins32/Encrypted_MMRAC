@@ -91,7 +91,8 @@ class Encrypter():
 
     def encrypt(s):
         start_time = time.time()
-        for k in range(1, 5000):
+        iterations = 5000
+        for k in range(1, iterations):
             if s.Encrypt == 2:
                 s.enc_ada(k)
             elif s.Encrypt == 1:
@@ -102,7 +103,7 @@ class Encrypter():
         end_time = time.time()
         execution_time = end_time - start_time
         print(f"Execution time: {execution_time} seconds")
-        print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k}")
+        print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k} and time {(s.ss_k/iterations) * s.t[-1]}")
 
     def enc_ada(s, k):
         # encryption of matrices and variables

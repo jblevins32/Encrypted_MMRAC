@@ -1,26 +1,27 @@
 import math
 import time
 from integrator import *
+from decimal import Decimal, getcontext
 
 class Encrypter():
     def __init__(s, enc_method):
         # Encryption
-        s.bit_length = 600
+        s.bit_length = 800
         s.rho = 1
         s.rho_ = 64
-        s.delta = 0.0001
+        s.delta = 0.001
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
         s.reset_xr = 1  # Reset Encryption of xr. Need to have this on right now since eps is calculated outside the plant
         s.reset_reg_eps = 0  # Reset Encryption of epsilon and regressor generator
         s.reset_par_mult = 0
-        s.reset_par_dot = 1
-        s.reset_par = 0  # Reset Encryption of par
+        s.reset_par_dot = 0
+        s.reset_par = 1  # Reset Encryption of par
 
         # system parameters
         s.m = 1
         s.b = 2
-        s.k = 1
+        s.k = 0
 
         s.zeta = .8  # Damping Ratio
         s.wn = 5  # Natural Frequency
@@ -37,11 +38,11 @@ class Encrypter():
 
         # Converting to discrete
         # No spring constant
-        # s.A = np.array([[1, .09063], [0, .8187]])
-        # s.B = np.array([[.004683], [.09063]])
+        s.A = np.array([[1, .09063], [0, .8187]])
+        s.B = np.array([[.004683], [.09063]])
         # With spring constant, but adaptive does not account for this
-        s.A = np.array([[.9953, .09048], [-.09048, .8144]])
-        s.B = np.array([[.004679], [.09048]])
+        # s.A = np.array([[.9953, .09048], [-.09048, .8144]])
+        # s.B = np.array([[.004679], [.09048]])
         s.Ar = np.array([[.9045, .06603], [-1.651, .3763]])
         s.Br = np.array([[.09549], [1.651]])
 
@@ -51,16 +52,16 @@ class Encrypter():
 
         # Other variables
         # s.c = np.array([[2, 3.125]])
-        s.e_tol = .001  # tolerable error
+        s.e_tol = .02  # tolerable error
         s.e_flag = 0
         s.ss_k = 0
-        s.c = np.array([[.5, 1]])
-        s.gam1 = 15
-        s.gam2 = 1
+        s.c = np.array([[0.388116177242762, 1.280453240431614]])
+        s.gam1 = 100
+        s.gam2 = 40
         s.gains = np.array([[-s.gam1, 0], [0, -s.gam2]])
         s.u = 0
         s.r = 0
-        s.Ts = .1
+        s.Ts = .01
         s.enc_Ts = enc(s.Ts, s.kappa, s.p, s.mod, s.delta)
         s.encode_Ts = encode(s.Ts, s.delta)
         s.Ts_time = s.Ts
@@ -80,16 +81,17 @@ class Encrypter():
         s.e_vec = []
         s.par_vec = []
         s.u_vec = []
+        s.enc_u_vec = []
         s.r_vec = []
         s.par = np.array([[0], [0]])
-        s.enc_par = mat_enc(s.par, s.kappa, s.p, s.mod, s.delta ** 4)
+        s.enc_par = mat_enc(s.par, s.kappa, s.p, s.mod, s.delta ** 5)
 
         s.t = 0  # time
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
 
     def encrypt(s):
         start_time = time.time()
-        for k in range(1, 100):
+        for k in range(1, 5000):
             if s.Encrypt == 2:
                 s.enc_ada(k)
             elif s.Encrypt == 1:
@@ -218,6 +220,8 @@ class Encrypter():
             u_depth = 4  # not correct right now
 
         # Decrypting
+        s.enc_u = Decimal(int(enc_u)/(Decimal(4.149516e180)))
+        s.enc_u_vec.append(s.enc_u)
         s.u = dec(enc_u, s.kappa, s.p, s.delta ** u_depth)
         s.u_vec.append(s.u)
 
@@ -317,7 +321,7 @@ class Encrypter():
             u_depth = 2
         elif (s.reset_par == 0) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 1):
             u_depth = 4
-        elif (s.reset_par == 0) & (s.reset_reg_eps == 0):
+        elif (s.reset_par == 0) & (s.reset_reg_eps == 0) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
             u_depth = 9
         elif (s.reset_par == 0) & (s.reset_reg_eps == 1) & (s.reset_par_mult == 0) & (s.reset_par_dot == 0):
             u_depth = 5
@@ -339,6 +343,7 @@ class Encrypter():
             s.par = mat_decode(s.par, s.delta**(s.par_dot_depth+1))  # d0
         s.par = mat_encode(s.par, s.delta**(s.par_dot_depth+1))
 
+        # setting up x and xr for next iteration
         s.x = mat_decode(s.x, s.delta**2)  # d0
         s.xr = mat_decode(s.xr, s.delta**2)  # d0 Have to decode all the way before encoding again or the numbers will be too big
         s.xr = mat_encode(s.xr, s.delta)  # d1

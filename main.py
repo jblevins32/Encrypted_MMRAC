@@ -39,7 +39,7 @@ def main():
 
     # Analyze the data
     if e.Encrypt == 2:
-        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'enc_data.csv')
+        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec, e.enc_u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec', 'enc_u_vec'], 'enc_data.csv')
     elif e.Encrypt == 1:
         write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec_test', 'u_vec'], 'encode_data.csv')
     elif e.Encrypt == 0:
@@ -47,27 +47,41 @@ def main():
 
     # Plot the Results
     plt.figure(1)
-    plt.subplot(311)
+    plt.subplot(211)
     plt.plot(e.t, np.array(e.e_vec)[:, 0])
-    plt.xlabel('Time (sec)')
     plt.ylabel('Tracking Error')
-    plt.title('Gains: gam1=100, gam2=10')
-    plt.subplot(312)
-    plt.plot(e.t, np.array(e.par_vec)[:, 0])
+    plt.title(f'Gains: gam1={e.gam1}, gam2={e.gam2}')
+    plt.subplot(212)
+    plt.plot(e.t, np.array(e.par_vec)[:, 0], label='Par 0: Mass')
+    plt.plot(e.t, np.array(e.par_vec)[:, 1], label='Par 1: Damping')
     plt.xlabel('Time (sec)')
     plt.ylabel('Parameters')
-    plt.subplot(313)
-    plt.plot(e.t, np.array(e.x_vec)[:, 0])
-    plt.xlabel('Time (sec)')
-    plt.ylabel('Output')
+    plt.legend(loc='center right')
+    # plt.subplot(313)
+    # plt.plot(e.t, np.array(e.x_vec)[:, 0])
+    # plt.xlabel('Time (sec)')
+    # plt.ylabel('Output')
+    plt.savefig('info.png', dpi=300)  # Specify the filename and DPI (dots per inch)
 
     plt.figure(2)
-    plt.plot(e.t, np.array(e.x_vec)[:, 0], label='Actual model')
+    plt.plot(e.t, np.array(e.x_vec)[:, 0], label='Plant')
     plt.plot(e.t, np.array(e.xr_vec)[:, 0], label='Reference model')
-    plt.title('Actual vs Reference Model')
-    plt.xlabel('Time')
+    plt.title('Plant vs Reference Model')
+    plt.ylabel('Output: State 1')
+    plt.xlabel('Time (sec)')
     plt.legend(loc='lower right')
+    plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
     plt.show()
+
+    # plt.figure(3)
+    # enc_u_vec = np.array(e.enc_u_vec)
+    # plt.plot(e.t, enc_u_vec)
+    # # plt.title('Encrypted Plant Input')
+    # # plt.xlabel('Time')
+    # # plt.legend(loc='lower right')
+    # # plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    # plt.show()
+
 
 if __name__ == '__main__':
     main()

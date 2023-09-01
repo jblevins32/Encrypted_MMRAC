@@ -73,14 +73,23 @@ def main():
     plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
     plt.show()
 
-    # plt.figure(3)
-    # enc_u_vec = np.array(e.enc_u_vec)
-    # plt.plot(e.t, enc_u_vec)
-    # # plt.title('Encrypted Plant Input')
-    # # plt.xlabel('Time')
-    # # plt.legend(loc='lower right')
-    # # plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
-    # plt.show()
+    plt.figure(3)
+    enc_u_vec = np.array(e.enc_u_vec)
+    plt.plot(e.t, enc_u_vec)
+    plt.title('Encrypted Plant Input')
+    plt.xlabel('Time')
+    plt.ylabel('Encrypted Value: Log Scale')
+    plt.savefig('enc_input.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.show()
+
+    plt.figure(4)
+    e.u_vec = np.array(e.u_vec)
+    plt.plot(e.t, e.u_vec[:, 0])
+    plt.title('Decrypted Plant Input')
+    plt.xlabel('Time')
+    plt.ylabel('Decrypted Value')
+    plt.savefig('dec_input.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.show()
 
 
 if __name__ == '__main__':

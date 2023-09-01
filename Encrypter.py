@@ -1,7 +1,7 @@
 import math
 import time
 from integrator import *
-from decimal import Decimal
+from mpmath import mp
 from disc import *
 from scipy.linalg import solve_discrete_lyapunov
 
@@ -90,7 +90,7 @@ class Encrypter():
 
     def encrypt(s):
         start_time = time.time()
-        iterations = 5000
+        iterations = 2000
         for k in range(1, iterations):
             if s.Encrypt == 2:
                 s.enc_ada(k)
@@ -220,7 +220,8 @@ class Encrypter():
             u_depth = 4  # not correct right now
 
         # Decrypting
-        s.enc_u = Decimal(int(enc_u)/(Decimal(4.149516e180)))
+        s.enc_u = mp.mpf(int(enc_u))
+        s.enc_u = mp.log10(s.enc_u)
         s.enc_u_vec.append(s.enc_u)
         s.u = dec(enc_u, s.kappa, s.p, s.delta ** u_depth)
         s.u_vec.append(s.u)

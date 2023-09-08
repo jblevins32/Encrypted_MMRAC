@@ -34,7 +34,7 @@ reset_par = 1  # Reset Encryption of par
 """
 
 def main():
-    e = Encrypter(enc_method=2)  # input enc_ada, encode_ada, or ada here. Instantiating the class
+    e = Encrypter(enc_method=0)  # input enc_ada, encode_ada, or ada here. Instantiating the class
     e.encrypt()
 
     # Analyze the data
@@ -73,24 +73,32 @@ def main():
     plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
     plt.show()
 
+    # Create a single figure with two subplots
     plt.figure(3)
+    fig, axs = plt.subplots(2, 1, figsize=(8, 6))
+
+    # First subplot: Encrypted Plant Input
     enc_u_vec = np.array(e.enc_u_vec)
-    plt.plot(e.t, enc_u_vec)
-    plt.title('Encrypted Plant Input')
-    plt.xlabel('Time')
-    plt.ylabel('Encrypted Value: Log Scale')
-    plt.savefig('enc_input.png', dpi=300)  # Specify the filename and DPI (dots per inch)
-    plt.show()
+    axs[0].plot(e.t, enc_u_vec)
+    axs[0].set_title('Encrypted Plant Input')
+    axs[0].set_xlabel('Time')
+    axs[0].set_ylabel('Encrypted Value: Log Scale')
 
-    plt.figure(4)
+    # Second subplot: Decrypted Plant Input
     e.u_vec = np.array(e.u_vec)
-    plt.plot(e.t, e.u_vec[:, 0])
-    plt.title('Decrypted Plant Input')
-    plt.xlabel('Time')
-    plt.ylabel('Decrypted Value')
-    plt.savefig('dec_input.png', dpi=300)  # Specify the filename and DPI (dots per inch)
-    plt.show()
+    axs[1].plot(e.t, e.u_vec[:, 0])
+    axs[1].set_title('Decrypted Plant Input')
+    axs[1].set_xlabel('Time')
+    axs[1].set_ylabel('Decrypted Value')
 
+    # Adjust the space between subplots
+    plt.tight_layout()
+
+    # Save the combined plot
+    plt.savefig('inputs.png', dpi=300)
+
+    # Show the combined plot
+    plt.show()
 
 if __name__ == '__main__':
     main()

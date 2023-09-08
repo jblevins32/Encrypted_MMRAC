@@ -8,7 +8,8 @@ from scipy.linalg import solve_discrete_lyapunov
 class Encrypter():
     def __init__(s, enc_method):
         # Encryption
-        s.bit_length = 800
+        s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
+        s.bit_length = 1000
         s.rho = 1
         s.rho_ = 64
         s.delta = 0.001
@@ -85,8 +86,15 @@ class Encrypter():
         s.par = np.array([[0], [0]])
         s.enc_par = mat_enc(s.par, s.kappa, s.p, s.mod, s.delta ** 5)
 
+        # Creating Alternate State Space
+        s.Ba = np.dot(s.c, s.Br)
+        s.Ba = s.gains*s.Ba
+        s.Aa1 = np.dot(s.c, s.Ar[:, 0])
+        s.Aa1 = s.gains*s.Aa1
+        s.Aa2 = np.dot(s.c, s.Ar[:, 1])
+        s.Aa2 = s.gains*s.Aa2
+
         s.t = 0  # time
-        s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
 
     def encrypt(s):
         start_time = time.time()
@@ -112,25 +120,32 @@ class Encrypter():
             s.enc_beta_1 = enc(s.beta_1, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_Ar = mat_enc(s.Ar, s.kappa, s.p, s.mod, s.delta)  # d1
-            s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_Br = mat_enc(s.Br, s.kappa, s.p, s.mod, s.delta)  # d1
+            s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_r = enc(s.r, s.kappa, s.p, s.mod, s.delta)  # d1
+            s.neg_enc_r = enc(-s.r, s.kappa, s.p, s.mod, s.delta)  # d1
             s.enc_d = enc(1, s.kappa, s.p, s.mod, s.delta)  # d1 for balancing encoding depths
 
-        # Calculating next encrypted reference state
+            # Alternate state space encryption
+            s.enc_Aa1 = mat_enc(s.Aa1, s.kappa, s.p, s.mod, s.delta)  # d1 2x2
+            s.enc_Aa2 = mat_enc(s.Aa2, s.kappa, s.p, s.mod, s.delta)  # d1 2x2
+            s.enc_Ba = mat_enc(s.Ba, s.kappa, s.p, s.mod, s.delta)  # d1 2x1
+
         s.enc_xr = add(mat_mult(s.enc_Ar, s.enc_xr, s.mod), mat_mult(s.enc_Br, s.enc_r, s.mod), s.mod)  # d2
 
         # For resetting xr
         if s.reset_xr == 1:  # for the purpose of removing encryption depth, not encoding depth
             s.xr = mat_dec(s.enc_xr, s.kappa, s.p, s.delta ** 2)  # d0
-            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
-            neg_enc_xr_c = mat_enc(s.gains * np.dot(s.c, -s.xr), s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later
             s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
-        else:
-            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta)  # d1 calculating neg xr for this iteration
-            neg_enc_r = enc(-s.r, s.kappa, s.p, s.mod, s.delta)  # d1
-            neg_enc_xr = add(mat_mult(s.enc_Ar, neg_enc_xr, s.mod), mat_mult(s.enc_Br, neg_enc_r, s.mod), s.mod)  # d2 for subtracting values later
-            #having a neg_enc_xr_c is very difficult
+            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 1)  # d2 for subtracting values later for plotting error
+
+        # Calculating next encrypted reference state
+        c1 = mult(s.enc_Aa1, neg_enc_xr[0, 0], s.mod)
+        c2 = mult(s.enc_Aa2, neg_enc_xr[1, 0], s.mod)
+        c3 = mult(s.enc_Ba, s.neg_enc_r, s.mod)
+        s1 = add(c1, c2, s.mod)
+
+        neg_enc_xr_c = add(s1, c3, s.mod)
 
         # PLANT: Calculating next output based on the input
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0 Only the output of this needs to be encrypted
@@ -140,7 +155,7 @@ class Encrypter():
         neg_enc_x = mat_enc(-s.x, s.kappa, s.p, s.mod, s.delta)  # d1 for subtracting values later in reg
 
         # Error and filtered error calculation
-        enc_e = add(enc_x, neg_enc_xr, s.mod)  # d2
+        enc_e = add(enc_x, neg_enc_xr, s.mod)  # d2 just for error visualization
         enc_eps = add(enc_x_c, neg_enc_xr_c, s.mod)  # d2
 
         # Testing for if tolerated error is reached
@@ -160,6 +175,7 @@ class Encrypter():
         # Regressor Generator split into parts for debugging
         s.r = -math.sin(s.t + math.pi / 2) + 1  # d0
         s.enc_r = enc(s.r, s.kappa, s.p, s.mod, s.delta)  # d1
+        s.neg_enc_r = enc(-s.r, s.kappa, s.p, s.mod, s.delta)  # d1 for the alternate state space later
         s.r_vec.append(dec(s.enc_r, s.kappa, s.p, s.delta))  # d0
         p1 = add(mult(add(s.enc_r, neg_enc_x[0][0], s.mod), s.enc_beta_2, s.mod), mult(neg_enc_x[1][0], s.enc_beta_1, s.mod), s.mod)  # d2
         p2 = enc_x[1][0]  # d2
@@ -248,11 +264,20 @@ class Encrypter():
             s.Br = mat_encode(s.Br, s.delta)  # d1
             s.r = encode(s.r, s.delta)  # d1
 
+            # Alternate state space encryption
+            s.Aa1 = mat_encode(s.Aa1, s.delta)  # d1 2x2
+            s.Aa2 = mat_encode(s.Aa2, s.delta)  # d1 2x2
+            s.Ba = mat_encode(s.Ba, s.delta)  # d1 2x1
+
         s.xr = np.dot(s.Ar, s.xr) + np.dot(s.Br, s.r)  # d2
-        s.xr_c = s.gains * np.dot(s.c, s.xr)  # d2
+        # Calculating next encrypted reference state
+        c1 = mat_decode(s.Aa1*s.xr[0, 0], s.delta)  # d2
+        c2 = mat_decode(s.Aa2*s.xr[1, 0], s.delta)  # d2
+        c3 = s.Ba*s.r  # d2
+        s.xr_c = c1 + c2 + c3  # d2
 
         s.x = np.dot(s.A, s.x) + np.dot(s.B, s.u)  # d0
-        s.x_c = mat_encode(s.gains * np.dot(s.c, s.x), s.delta ** 2)
+        s.x_c = mat_encode(s.gains * np.dot(s.c, s.x), s.delta ** 2)  # d2
         x_d1 = mat_encode(s.x, s.delta)  # d2
         s.x = mat_encode(s.x, s.delta ** 2)  # d2
         e = s.x - s.xr  # d2

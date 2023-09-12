@@ -9,9 +9,9 @@ class Encrypter():
     def __init__(s, enc_method):
         # Encryption
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
-        s.bit_length = 1000
-        s.rho = 1
-        s.rho_ = 64
+        s.bit_length = 700
+        s.rho = 32
+        s.rho_ = 64+32
         s.delta = 0.001
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
@@ -47,6 +47,8 @@ class Encrypter():
         s.Ts = .01
         s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
         s.Ar, s.Br, s.Cr, s.Dr = disc(s.Ar, s.Br, s.Cr, s.Dr, s.Ts)
+        eigenvalues = np.linalg.eigvals(s.Ar)
+        abs_eigenvalues = np.abs(eigenvalues)
 
         # Initial Conditions
         s.x = np.array([[0], [0]])
@@ -98,7 +100,7 @@ class Encrypter():
 
     def encrypt(s):
         start_time = time.time()
-        iterations = 2000
+        iterations = 5000
         for k in range(1, iterations):
             if s.Encrypt == 2:
                 s.enc_ada(k)
@@ -109,8 +111,9 @@ class Encrypter():
         s.t = np.arange(s.Ts, (k+1) * s.Ts, s.Ts)
         end_time = time.time()
         execution_time = end_time - start_time
-        print(f"Execution time: {execution_time} seconds")
+        print(f"Execution time: {execution_time/iterations} seconds")
         print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k} and time {(s.ss_k/iterations) * s.t[-1]}")
+        print(f"State 1 average error is {np.mean(s.e_vec)}")
 
     def enc_ada(s, k):
         # encryption of matrices and variables
@@ -137,7 +140,8 @@ class Encrypter():
         if s.reset_xr == 1:  # for the purpose of removing encryption depth, not encoding depth
             s.xr = mat_dec(s.enc_xr, s.kappa, s.p, s.delta ** 2)  # d0
             s.enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2
-            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 1)  # d2 for subtracting values later for plotting error
+            neg_enc_xr = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 1)  # d1
+            neg_enc_xr_2 = mat_enc(-s.xr, s.kappa, s.p, s.mod, s.delta ** 2)  # d2 for subtracting values later for plotting error
 
         # Calculating next encrypted reference state
         c1 = mult(s.enc_Aa1, neg_enc_xr[0, 0], s.mod)
@@ -155,7 +159,7 @@ class Encrypter():
         neg_enc_x = mat_enc(-s.x, s.kappa, s.p, s.mod, s.delta)  # d1 for subtracting values later in reg
 
         # Error and filtered error calculation
-        enc_e = add(enc_x, neg_enc_xr, s.mod)  # d2 just for error visualization
+        enc_e = add(enc_x, neg_enc_xr_2, s.mod)  # d2 just for error visualization
         enc_eps = add(enc_x_c, neg_enc_xr_c, s.mod)  # d2
 
         # Testing for if tolerated error is reached
@@ -173,7 +177,7 @@ class Encrypter():
         s.e_vec.append(mat_dec(enc_e.flatten(), s.kappa, s.p, s.delta ** 2))  # d0
 
         # Regressor Generator split into parts for debugging
-        s.r = -math.sin(s.t + math.pi / 2) + 1  # d0
+        s.r = -math.sin(s.t + math.pi / 2) + 1  # d0 ramp = s.t
         s.enc_r = enc(s.r, s.kappa, s.p, s.mod, s.delta)  # d1
         s.neg_enc_r = enc(-s.r, s.kappa, s.p, s.mod, s.delta)  # d1 for the alternate state space later
         s.r_vec.append(dec(s.enc_r, s.kappa, s.p, s.delta))  # d0
@@ -399,7 +403,7 @@ class Encrypter():
         # Regressor Generator split into parts for debugging
         s.r = (-math.sin(s.t + math.pi / 2) + 1)
         s.r_vec.append(s.r)
-        reg = np.array([[s.x[1][0]], [(s.r - s.x[0][0]) * s.beta_2 - s.x[1][0] * s.beta_1]])
+        reg = np.array([[(s.r - s.x[0][0]) * s.beta_2 - s.x[1][0] * s.beta_1],[s.x[1][0]]])
         s.reg_vec.append(reg.flatten())
 
         par_mult = eps * reg

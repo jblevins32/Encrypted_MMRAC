@@ -100,7 +100,7 @@ class Encrypter():
 
     def encrypt(s):
         start_time = time.time()
-        iterations = 5000
+        iterations = 2000
         for k in range(1, iterations):
             if s.Encrypt == 2:
                 s.enc_ada(k)
@@ -113,7 +113,8 @@ class Encrypter():
         execution_time = end_time - start_time
         print(f"Execution time: {execution_time/iterations} seconds")
         print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k} and time {(s.ss_k/iterations) * s.t[-1]}")
-        print(f"State 1 average error is {np.mean(s.e_vec)}")
+        avg = abs(np.array(s.e_vec)[:, 0])
+        print(f"State 1 average error is {np.mean(avg)}")
 
     def enc_ada(s, k):
         # encryption of matrices and variables
@@ -403,7 +404,7 @@ class Encrypter():
         # Regressor Generator split into parts for debugging
         s.r = (-math.sin(s.t + math.pi / 2) + 1)
         s.r_vec.append(s.r)
-        reg = np.array([[(s.r - s.x[0][0]) * s.beta_2 - s.x[1][0] * s.beta_1],[s.x[1][0]]])
+        reg = np.array([[(s.r - s.x[0][0]) * s.beta_2 - s.x[1][0] * s.beta_1], [s.x[1][0]]])
         s.reg_vec.append(reg.flatten())
 
         par_mult = eps * reg

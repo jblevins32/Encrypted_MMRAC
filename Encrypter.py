@@ -11,8 +11,10 @@ class Encrypter():
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
         s.bit_length = 700
         s.rho = 32
-        s.rho_ = 64+32
-        s.delta = 0.001
+        s.rho_ = 96
+        s.delta = 0.00025
+        s.gam1 = 50
+        s.gam2 = 20
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
         s.reset_xr = 1  # Reset Encryption of xr. Need to have this on right now since eps is calculated outside the plant
@@ -59,8 +61,6 @@ class Encrypter():
         s.e_flag = 0
         s.ss_k = 0
         s.c = np.dot([0, 1], solve_discrete_lyapunov(np.transpose(s.Ar), np.eye(2))).reshape(1, -1)
-        s.gam1 = 100
-        s.gam2 = 40
         s.gains = np.array([[-s.gam1, 0], [0, -s.gam2]])
         s.u = 0
         s.r = 0
@@ -100,7 +100,7 @@ class Encrypter():
 
     def encrypt(s):
         start_time = time.time()
-        iterations = 2000
+        iterations = 3000
         for k in range(1, iterations):
             if s.Encrypt == 2:
                 s.enc_ada(k)

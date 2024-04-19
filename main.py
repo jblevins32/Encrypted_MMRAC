@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from Encrypter import Encrypter
+from Encrypter import MRAC_Encrypter
 from compare import *
 from dyersmat import *
 
@@ -34,46 +34,51 @@ reset_par = 1  # Reset Encryption of par
 """
 
 def main():
-    e = Encrypter(enc_method=2)  # input enc_ada, encode_ada, or ada here. Instantiating the class
+    e = MRAC_Encrypter(enc_method=2)  # input enc_ada, overflowed ada, encode_ada, or ada here. Instantiating the class
     e.encrypt()
 
     # Analyze the data
-    if e.Encrypt == 2:
-        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec, e.enc_u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec', 'enc_u_vec'], 'enc_data.csv')
-    elif e.Encrypt == 1:
-        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec_test', 'u_vec'], 'encode_data.csv')
-    elif e.Encrypt == 0:
-        write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'un_enc_data.csv')
+    # if e.Encrypt == 2:
+    #     write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec, e.enc_u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec', 'enc_u_vec'], 'enc_data.csv')
+    # elif e.Encrypt == 1:
+    #     write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec_test, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec_test', 'u_vec'], 'encode_data.csv')
+    # elif e.Encrypt == 0:
+    #     write_matrices_to_csv([e.r_vec, e.x_vec, e.xr_vec, e.e_vec, e.par_vec, e.reg_vec, e.par_dot_vec, e.u_vec], ['r_vec', 'x_vec', 'xr_vec', 'e_vec', 'par_vec', 'reg_vec', 'par_dot_vec', 'u_vec'], 'un_enc_data.csv')
 
     # Plot the Results
     plt.rcParams.update({'font.size': 12})  # Adjust the font size as needed
     plt.close('all')
 
     plt.figure(1, figsize=(8, 4.5))
-    plt.subplot(211)
-    plt.plot(e.t, np.array(e.e_vec)[:, 0])
+    plt.plot(e.t, np.array(e.e_vec)[:, 0], label=r'$x_1 \; error (m)$', color='blue')
+    plt.plot(e.t, np.array(e.e_vec)[:, 1], label=r'$x_1 \; error (m)$', color='red')
+    # plt.grid(True)
     plt.ylabel('Tracking Error')
-    # plt.title(f'Gains: gam1={e.gam1}, gam2={e.gam2}')
-    plt.subplot(212)
-    plt.plot(e.t, np.array(e.par_vec)[:, 0], label=r'$\hat{m}$')
-    plt.plot(e.t, np.array(e.par_vec)[:, 1], label=r'$\hat{b}$')
     plt.xlabel('Time(s)')
-    plt.ylabel('Parameters')
     plt.legend(loc='lower right')
-    # plt.subplot(313)
-    # plt.plot(e.t, np.array(e.x_vec)[:, 0])
-    # plt.xlabel('Time (sec)')
-    # plt.ylabel('Output')
-    plt.savefig('info.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.savefig('error.png', dpi=300)  # Specify the filename and DPI (dots per inch)
 
     plt.figure(2, figsize=(8, 5))
-    plt.plot(e.t, np.array(e.x_vec)[:, 0], label='Plant')
-    plt.plot(e.t, np.array(e.xr_vec)[:, 0], label='Reference model')
-    # plt.title('Plant vs Reference Model')
+    plt.plot(e.t, np.array(e.x_vec)[:, 0], label='Plant x1', color='blue')
+    plt.plot(e.t, np.array(e.xr_vec)[:, 0], label='Reference model x1', color='red')
+    plt.plot(e.t, np.array(e.x_vec)[:, 1], label='Plant x2', color='cadetblue')
+    plt.plot(e.t, np.array(e.xr_vec)[:, 1], label='Reference model x2', color='indianred')
+    # plt.grid(True)
     plt.ylabel(r'Output: $x_1 (m)$')
     plt.xlabel('Time(s)')
     plt.legend(loc='lower right')
     plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.show()
+
+    plt.figure(3, figsize=(8, 5))
+    gains_vec_array = np.array(e.gains_vec)
+    for i in range(gains_vec_array.shape[1]):
+        plt.plot(e.t, gains_vec_array[:, i], label=f'Gain {i + 1}')
+    # plt.grid(True)
+    plt.ylabel('Gains')
+    plt.xlabel('Time(s)')
+    plt.legend(loc='lower right')
+    plt.savefig('gains.png', dpi=300)  # Specify the filename and DPI (dots per inch)
     plt.show()
 
     if e.Encrypt == 2:

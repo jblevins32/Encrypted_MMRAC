@@ -1,7 +1,14 @@
 from dyers import *
 
+theta0 = 0  # Initial roll angle (rad)
+p0 = 0  # Initial roll rate (rad/s)
+x = np.array([theta0, p0])
+theta = np.array([1, 0.2314, 0.6918, 0.6245, 0.1, 0.214])
+phi = np.array([1, x[0], x[1], np.abs(x[0]) * x[0], np.abs(x[1]) * x[1], x[0] ** 3])
+
+
 bit_length = 400
-rho = 1
+rho = 16
 rho_ = 64
 delta = .1
 kappa, p = keygen(bit_length, rho, rho_)

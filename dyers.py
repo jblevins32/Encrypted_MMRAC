@@ -77,6 +77,25 @@ def mult(c1, c2, modulus):
 
     return c3
 
+def longmult(c1, modulus): # c1 is a vector of numbers to be multiplied together
+    c2 = c1[0]
+    for i in range(len(c1)):
+        if i == 0:
+            c2 = c2
+        else:
+            c2 = (c2 * c1[i]) % modulus
+
+    return c2
+
+def longadd(c1, modulus): # c1 is a vector of numbers to be multiplied together
+    c2 = c1[0]
+    for i in range(len(c1)):
+        if i == 0:
+            c2 = c2
+        else:
+            c2 = (c2 + c1[i]) % modulus
+
+    return c2
 
 if __name__ == '__main__':
     # Security Parameters #

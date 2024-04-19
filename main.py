@@ -50,35 +50,42 @@ def main():
     plt.close('all')
 
     plt.figure(1, figsize=(8, 4.5))
-    plt.plot(e.t, np.array(e.e_vec)[:, 0], label=r'$x_1 \; error (m)$', color='blue')
-    plt.plot(e.t, np.array(e.e_vec)[:, 1], label=r'$x_1 \; error (m)$', color='red')
+    plt.plot(e.t, np.array(e.e_vec)[:, 0], label=r'$x_1 \; error$', color='blue')
+    plt.plot(e.t, np.array(e.e_vec)[:, 1], label=r'$x_2 \; error$', color='red')
     # plt.grid(True)
-    plt.ylabel('Tracking Error')
-    plt.xlabel('Time(s)')
-    plt.legend(loc='lower right')
-    plt.savefig('error.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.ylabel('Tracking Error (m)', fontsize=16)
+    plt.xlabel('Time (s)', fontsize=16)
+    plt.legend(loc='lower right', fontsize=12)
+    plt.savefig('encrypt_error.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
 
     plt.figure(2, figsize=(8, 5))
-    plt.plot(e.t, np.array(e.x_vec)[:, 0], label='Plant x1', color='blue')
-    plt.plot(e.t, np.array(e.xr_vec)[:, 0], label='Reference model x1', color='red')
-    plt.plot(e.t, np.array(e.x_vec)[:, 1], label='Plant x2', color='cadetblue')
-    plt.plot(e.t, np.array(e.xr_vec)[:, 1], label='Reference model x2', color='indianred')
+    plt.plot(e.t, np.array(e.x_vec)[:, 0], label=r'Plant $x_1$', color='blue')
+    plt.plot(e.t, np.array(e.xr_vec)[:, 0], label=r'Ref Model $x_1$', color='red')
+    plt.plot(e.t, np.array(e.x_vec)[:, 1], label=r'Plant $x_2$', color='blue', linestyle='--')
+    plt.plot(e.t, np.array(e.xr_vec)[:, 1], label=r'Ref Model $x_2$', color='red', linestyle='--')
     # plt.grid(True)
-    plt.ylabel(r'Output: $x_1 (m)$')
-    plt.xlabel('Time(s)')
-    plt.legend(loc='lower right')
-    plt.savefig('outputs.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.ylabel('Output (m)', fontsize=16)
+    plt.xlabel('Time (s)', fontsize=16)
+    plt.legend(loc='lower right', fontsize=12)
+    plt.savefig('encrypt_outputs.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
     plt.show()
 
     plt.figure(3, figsize=(8, 5))
     gains_vec_array = np.array(e.gains_vec)
-    for i in range(gains_vec_array.shape[1]):
-        plt.plot(e.t, gains_vec_array[:, i], label=f'Gain {i + 1}')
+    plt.plot(e.t, gains_vec_array[:, 0], label=r'$K_{x_{1}}$')
+    plt.plot(e.t, gains_vec_array[:, 1], label=r'$K_{x_{2}}$')
+    plt.plot(e.t, gains_vec_array[:, 2], label=r'$K_{r}$')
+    plt.plot(e.t, gains_vec_array[:, 3], label=r'$K_{\theta_{1}}$')
+    plt.plot(e.t, gains_vec_array[:, 4], label=r'$K_{\theta_{2}}$')
+    plt.plot(e.t, gains_vec_array[:, 5], label=r'$K_{\theta_{3}}$')
+    plt.plot(e.t, gains_vec_array[:, 6], label=r'$K_{\theta_{4}}$')
+    plt.plot(e.t, gains_vec_array[:, 7], label=r'$K_{\theta_{5}}$')
+    plt.plot(e.t, gains_vec_array[:, 8], label=r'$K_{\theta_{6}}$')
     # plt.grid(True)
-    plt.ylabel('Gains')
-    plt.xlabel('Time(s)')
-    plt.legend(loc='lower right')
-    plt.savefig('gains.png', dpi=300)  # Specify the filename and DPI (dots per inch)
+    plt.ylabel('Gains', fontsize=16)
+    plt.xlabel('Time (s)', fontsize=16)
+    plt.legend(loc='upper center', bbox_to_anchor=(0.8, 0.45), ncol=2, fontsize=12)
+    plt.savefig('encrypt_gains.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
     plt.show()
 
     if e.Encrypt == 2:
@@ -88,22 +95,22 @@ def main():
 
         # First subplot: Encrypted Plant Input
         enc_u_vec = np.array(e.enc_u_vec)
-        axs[0].plot(e.t, enc_u_vec)
+        axs[0].plot(e.t, enc_u_vec, color='blue')
         # axs[0].set_title('Encrypted Plant Input')
-        axs[0].set_ylabel('Enc(u(k)): Log Scale')
+        axs[0].set_ylabel(r'$\bar{\bar{u}}$', fontsize=16)
 
         # Second subplot: Decrypted Plant Input
         e.u_vec = np.array(e.u_vec)
-        axs[1].plot(e.t, e.u_vec[:, 0])
+        axs[1].plot(e.t, e.u_vec[:, 0], color='blue')
         # axs[1].set_title('Decrypted Plant Input')
-        axs[1].set_xlabel('Time(s)')
-        axs[1].set_ylabel('Dec(u(k))')
+        axs[1].set_xlabel('Time (s)', fontsize=16)
+        axs[1].set_ylabel('u', fontsize=16)
 
         # Adjust the space between subplots
         plt.tight_layout()
 
         # Save the combined plot
-        plt.savefig('inputs.png', dpi=300)
+        plt.savefig('encrypt_inputs.eps', dpi=300, format='eps')
 
         # Show the combined plot
         plt.show()

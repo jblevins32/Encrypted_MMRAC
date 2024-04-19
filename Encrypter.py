@@ -106,7 +106,7 @@ class MRAC_Encrypter():
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 5000
+        iterations = 3000
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -128,10 +128,16 @@ class MRAC_Encrypter():
         phi = np.array([[1, s.x[0][0], s.x[1][0], np.abs(s.x[0][0]) * s.x[0][0], np.abs(s.x[1][0]) * s.x[1][0], s.x[0][0] ** 3]]).T
         r = math.sin(s.t)
 
+        # Changing plant at 20 seconds
+        if (k == 2000):
+            s.A = np.array([[0, 1], [-8, -8]])
+            s.B = np.array([[0], [3]])
+            s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
+
         s.xr = np.dot(s.Ar, s.xr) + s.Br * r
         s.x = np.dot(s.A, s.x) + s.B * (s.u + np.dot(s.theta, phi))
         e = s.x - s.xr # error monitor
-        test=0
+
         # Testing for if tolerated error is reached
         if abs(e[0][0]) <= s.e_tol:
             if s.e_flag == 0:
@@ -190,6 +196,10 @@ class MRAC_Encrypter():
         s.enc_gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta)
 
         enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
+
+        # Beta attack
+        if (k >= 1000):
+            enc_u = s.attack(enc_u)
 
         s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 2)
 
@@ -319,3 +329,7 @@ class MRAC_Encrypter():
         s.gains_vec.append(s.gains.flatten())
 
         s.t = s.t + s.Ts_time
+
+    def attack(s, enc_u):
+        enc_u = mult(enc_u, enc(10, s.kappa, s.p, s.mod, 1), s.mod)
+        return enc_u

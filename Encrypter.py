@@ -131,7 +131,7 @@ class MRAC_Encrypter():
         s.xr = np.dot(s.Ar, s.xr) + s.Br * r
         s.x = np.dot(s.A, s.x) + s.B * (s.u + np.dot(s.theta, phi))
         e = s.x - s.xr # error monitor
-
+        test=0
         # Testing for if tolerated error is reached
         if abs(e[0][0]) <= s.e_tol:
             if s.e_flag == 0:

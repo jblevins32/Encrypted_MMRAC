@@ -49,27 +49,30 @@ def main():
     plt.rcParams.update({'font.size': 12})  # Adjust the font size as needed
     plt.close('all')
 
+    # Error plot
     plt.figure(1, figsize=(8, 4.5))
-    plt.plot(e.t, np.array(e.e_vec)[:, 0], label=r'$x_1 \; error$', color='blue')
-    plt.plot(e.t, np.array(e.e_vec)[:, 1], label=r'$x_2 \; error$', color='red')
-    # plt.grid(True)
+    # len = 185 # for showing the overflow case
+    len = 3000 # for the MMRAC case
+    plt.plot(e.t[0:len], np.array(e.e_vec)[0:len, 0], label=r'$x_1 \; error$', color='blue')
+    plt.plot(e.t[0:len], np.array(e.e_vec)[0:len, 1], label=r'$x_2 \; error$', color='red')
     plt.ylabel('Tracking Error (m)', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='lower right', fontsize=12)
     plt.savefig('encrypt_error.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
 
+    # Output plot
     plt.figure(2, figsize=(8, 5))
     plt.plot(e.t, np.array(e.x_vec)[:, 0], label=r'Plant $x_1$', color='blue')
     plt.plot(e.t, np.array(e.xr_vec)[:, 0], label=r'Ref Model $x_1$', color='red')
     plt.plot(e.t, np.array(e.x_vec)[:, 1], label=r'Plant $x_2$', color='blue', linestyle='--')
     plt.plot(e.t, np.array(e.xr_vec)[:, 1], label=r'Ref Model $x_2$', color='red', linestyle='--')
-    # plt.grid(True)
     plt.ylabel('Output (m)', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='lower right', fontsize=12)
     plt.savefig('encrypt_outputs.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
     plt.show()
 
+    # Gains plot
     plt.figure(3, figsize=(8, 5))
     gains_vec_array = np.array(e.gains_vec)
     plt.plot(e.t, gains_vec_array[:, 0], label=r'$K_{x_{1}}$')
@@ -81,14 +84,13 @@ def main():
     plt.plot(e.t, gains_vec_array[:, 6], label=r'$K_{\theta_{4}}$')
     plt.plot(e.t, gains_vec_array[:, 7], label=r'$K_{\theta_{5}}$')
     plt.plot(e.t, gains_vec_array[:, 8], label=r'$K_{\theta_{6}}$')
-    # plt.grid(True)
     plt.ylabel('Gains', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
-    plt.legend(loc='upper center', bbox_to_anchor=(0.8, 0.45), ncol=2, fontsize=12)
+    plt.legend(loc='upper left', bbox_to_anchor=(0, 1), ncol=3, fontsize=12) #, prop={'size': 10}
     plt.savefig('encrypt_gains.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
     plt.show()
 
-    if e.Encrypt == 2:
+    if e.Encrypt == 2 or 1:
         # Create a single figure with two subplots
         plt.figure(3)
         fig, axs = plt.subplots(2, 1, figsize=(8, 5))
@@ -97,14 +99,14 @@ def main():
         enc_u_vec = np.array(e.enc_u_vec)
         axs[0].plot(e.t, enc_u_vec, color='blue')
         # axs[0].set_title('Encrypted Plant Input')
-        axs[0].set_ylabel(r'$\bar{\bar{u}}$', fontsize=16)
+        axs[0].set_ylabel(r'$\bar{\bar{u}}$ (deg)', fontsize=16)
 
         # Second subplot: Decrypted Plant Input
         e.u_vec = np.array(e.u_vec)
         axs[1].plot(e.t, e.u_vec[:, 0], color='blue')
         # axs[1].set_title('Decrypted Plant Input')
         axs[1].set_xlabel('Time (s)', fontsize=16)
-        axs[1].set_ylabel('u', fontsize=16)
+        axs[1].set_ylabel(r'$u$ (deg)', fontsize=16)
 
         # Adjust the space between subplots
         plt.tight_layout()

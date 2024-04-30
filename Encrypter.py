@@ -84,29 +84,35 @@ class MRAC_Encrypter():
         s.gamma_theta = 30 * np.eye(s.q)
         s.gains = 0
 
-        # Creating Alternate State Space. Hardcoded to 2nd order
-        v_1 = np.dot(np.dot(s.B.T, s.P), s.Ar[:, 0])
-        v_2 = np.dot(np.dot(s.B.T, s.P), s.Ar[:, 1])
+        # Precomputation
+        v_1 = np.dot(s.B.T, s.P)
+        v_2 = np.dot(np.dot(s.B.T, s.P), s.Ar)
         v_3 = np.dot(np.dot(s.B.T, s.P), s.Br)
 
-        s.A_omega0_x = s.gamma_x * v_1
-        s.A_omega1_x = s.gamma_x * v_2
-        s.B_omega_x = s.gamma_x * v_3
+        s.G_omega0_x = -s.Ts * v_1[0][0] * s.gamma_x
+        s.G_omega1_x = -s.Ts * v_1[0][1] * s.gamma_x
+        s.G_omega0_r = -s.Ts * v_1[0][0] * s.gamma_r
+        s.G_omega1_r = -s.Ts * v_1[0][1] * s.gamma_r
+        s.G_omega0_theta = -s.Ts * v_1[0][0] * s.gamma_theta
+        s.G_omega1_theta = -s.Ts * v_1[0][1] * s.gamma_theta
 
-        s.A_omega0_r = s.gamma_r * v_1
-        s.A_omega1_r = s.gamma_r * v_2
-        s.B_omega_r = s.gamma_r * v_3
+        s.A_omega0_x = s.Ts * v_2[0][0] * s.gamma_x
+        s.A_omega1_x = s.Ts * v_2[0][1] * s.gamma_x
+        s.A_omega0_r = s.Ts * v_2[0][0] * s.gamma_r
+        s.A_omega1_r = s.Ts * v_2[0][1] * s.gamma_r
+        s.A_omega0_theta = s.Ts * v_2[0][0] * s.gamma_theta
+        s.A_omega1_theta = s.Ts * v_2[0][1] * s.gamma_theta
 
-        s.A_omega0_theta = s.gamma_theta * v_1
-        s.A_omega1_theta = s.gamma_theta * v_2
-        s.B_omega_theta = s.gamma_theta * v_3
+        s.B_omega_x = s.Ts * v_3 * s.gamma_x
+        s.B_omega_r = s.Ts * v_3 * s.gamma_r
+        s.B_omega_theta = s.Ts * v_3 * s.gamma_theta
 
         s.t = 0  # time
 
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 3000
+        iterations = 5000
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -129,10 +135,10 @@ class MRAC_Encrypter():
         r = math.sin(s.t)
 
         # Changing plant at 20 seconds
-        if (k == 2000):
-            s.A = np.array([[0, 1], [-8, -8]])
-            s.B = np.array([[0], [3]])
-            s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
+        # if (k == 2000):
+        #     s.A = np.array([[0, 1], [-8, -8]])
+        #     s.B = np.array([[0], [3]])
+        #     s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
 
         s.xr = np.dot(s.Ar, s.xr) + s.Br * r
         s.x = np.dot(s.A, s.x) + s.B * (s.u + np.dot(s.theta, phi))
@@ -147,36 +153,38 @@ class MRAC_Encrypter():
         else:
             s.e_flag = 0
 
-        int_var = np.dot(np.dot(s.B.T, s.P), s.x)
-        y_omega_x = -s.gamma_x * int_var
-        y_omega_r = -s.gamma_r * int_var
-        y_omega_theta = -s.gamma_theta * int_var
-
         # encryption of matrices and variables
         if k == 1: # all d1
             s.enc_Ar = mat_enc(s.Ar, s.kappa, s.p, s.mod, s.delta)
             s.enc_Br = mat_enc(s.Br, s.kappa, s.p, s.mod, s.delta)
+            s.enc_G_omega0_x = mat_enc(s.G_omega0_x, s.kappa, s.p, s.mod, s.delta)
+            s.enc_G_omega1_x = mat_enc(s.G_omega1_x, s.kappa, s.p, s.mod, s.delta)
+            s.enc_G_omega0_r = enc(s.G_omega0_r, s.kappa, s.p, s.mod, s.delta)
+            s.enc_G_omega1_r = enc(s.G_omega1_r, s.kappa, s.p, s.mod, s.delta)
+            s.enc_G_omega0_theta = mat_enc(s.G_omega0_theta, s.kappa, s.p, s.mod, s.delta)
+            s.enc_G_omega1_theta = mat_enc(s.G_omega1_theta, s.kappa, s.p, s.mod, s.delta)
             s.enc_A_omega0_x = mat_enc(s.A_omega0_x, s.kappa, s.p, s.mod, s.delta)
             s.enc_A_omega1_x = mat_enc(s.A_omega1_x, s.kappa, s.p, s.mod, s.delta)
-            s.enc_B_omega_x = mat_enc(s.B_omega_x, s.kappa, s.p, s.mod, s.delta)
-            s.enc_A_omega0_r = mat_enc(s.A_omega0_r, s.kappa, s.p, s.mod, s.delta)
-            s.enc_A_omega1_r = mat_enc(s.A_omega1_r, s.kappa, s.p, s.mod, s.delta)
-            s.enc_B_omega_r = mat_enc(s.B_omega_r, s.kappa, s.p, s.mod, s.delta)
+            s.enc_A_omega0_r = enc(s.A_omega0_r, s.kappa, s.p, s.mod, s.delta)
+            s.enc_A_omega1_r = enc(s.A_omega1_r, s.kappa, s.p, s.mod, s.delta)
             s.enc_A_omega0_theta = mat_enc(s.A_omega0_theta, s.kappa, s.p, s.mod, s.delta)
             s.enc_A_omega1_theta = mat_enc(s.A_omega1_theta, s.kappa, s.p, s.mod, s.delta)
+            s.enc_B_omega_x = mat_enc(s.B_omega_x, s.kappa, s.p, s.mod, s.delta)
+            s.enc_B_omega_r = mat_enc(s.B_omega_r, s.kappa, s.p, s.mod, s.delta)
             s.enc_B_omega_theta = mat_enc(s.B_omega_theta, s.kappa, s.p, s.mod, s.delta)
             s.enc_Ts = enc(s.Ts, s.kappa, s.p, s.mod, s.delta)  # d1 for balancing encoding depths
-            s.enc_d3 = enc(1, s.kappa, s.p, s.mod, s.delta ** 3)
+            s.enc_d2 = enc(1, s.kappa, s.p, s.mod, s.delta ** 2)
 
         enc_r = enc(r, s.kappa, s.p, s.mod, s.delta)  # d1
         enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
         enc_x = mat_enc(s.x, s.kappa, s.p, s.mod, s.delta)  # d1
-        enc_y_omega_x = mat_enc(y_omega_x, s.kappa, s.p, s.mod, s.delta ** 2)
-        enc_y_omega_r = mat_enc(y_omega_r, s.kappa, s.p, s.mod, s.delta  ** 2)
-        enc_y_omega_theta = mat_enc(y_omega_theta, s.kappa, s.p, s.mod, s.delta ** 2)
         enc_phi = mat_enc(phi, s.kappa, s.p, s.mod, s.delta)
 
         # Cloud
+        enc_y_omega_x = add(mat_mult(s.enc_G_omega0_x, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_x, enc_x[1][0], s.mod), s.mod)
+        enc_y_omega_r = add(mat_mult(s.enc_G_omega0_r, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_r, enc_x[1][0], s.mod), s.mod)
+        enc_y_omega_theta = add(mat_mult(s.enc_G_omega0_theta, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_theta, enc_x[1][0], s.mod), s.mod)
+
         enc_yr_omega_x = add(add(mat_mult(s.enc_A_omega0_x, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_x, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_x, enc_r, s.mod), s.mod)
         enc_yr_omega_r = add(add(mat_mult(s.enc_A_omega0_r, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_r, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_r, enc_r, s.mod), s.mod)
         enc_yr_omega_theta = add(add(mat_mult(s.enc_A_omega0_theta, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_theta, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_theta, enc_r, s.mod), s.mod)
@@ -191,17 +199,19 @@ class MRAC_Encrypter():
 
         enc_z_vec = np.concatenate((enc_z_x.flatten(), enc_z_r.flatten(), enc_z_theta.flatten())).flatten()
 
-        s.enc_gains = add(mat_mult(s.enc_gains, s.enc_d3, s.mod), mat_mult(enc_z_vec, s.enc_Ts, s.mod).reshape(-1, 1), s.mod)
-        s.gains = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 4) # decrypt to update plaintext gains vector and reset integration increasing depth
-        s.enc_gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta)
+        # test1 = mat_mult(s.enc_gains, s.enc_d2, s.mod)
+        # test2 = enc_z_vec.reshape(-1, 1)
+        s.enc_gains = add(s.enc_gains, enc_z_vec.reshape(-1, 1), s.mod)
+        s.gains = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 3) # decrypt to update plaintext gains vector and reset integration increasing depth
+        # s.enc_gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta)
 
         enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
 
         # Beta attack
-        if (k >= 1000):
-            enc_u = s.attack(enc_u)
+        # if k >= 1000 and k < 1500:
+        #     enc_u = s.attack(enc_u, k)
 
-        s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 2)
+        s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 4)
 
         # Need these vectors later for plotting
         s.x_vec.append(s.x.flatten())
@@ -279,6 +289,13 @@ class MRAC_Encrypter():
         s.gains_vec.append(s.gains.flatten())
 
         s.t = s.t + s.Ts_time
+
+        # Decrypting
+        s.enc_u = mp.mpf(int(enc_u))
+        s.enc_u = mp.log10(s.enc_u)
+        s.enc_u_vec.append(s.enc_u)
+        s.u_vec.append(s.u)
+
     def ada(s, k):
         # Plant
         phi = np.array([[1, s.x[0][0], s.x[1][0], np.abs(s.x[0][0]) * s.x[0][0], np.abs(s.x[1][0]) * s.x[1][0], s.x[0][0] ** 3]]).T
@@ -330,6 +347,6 @@ class MRAC_Encrypter():
 
         s.t = s.t + s.Ts_time
 
-    def attack(s, enc_u):
-        enc_u = mult(enc_u, enc(10, s.kappa, s.p, s.mod, 1), s.mod)
+    def attack(s, enc_u, k):
+        enc_u = mult(enc_u, enc(np.abs(10*math.sin(k)), s.kappa, s.p, s.mod, 1), s.mod)
         return enc_u

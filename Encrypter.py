@@ -112,7 +112,7 @@ class MRAC_Encrypter():
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 5000
+        iterations = 3000
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -199,17 +199,14 @@ class MRAC_Encrypter():
 
         enc_z_vec = np.concatenate((enc_z_x.flatten(), enc_z_r.flatten(), enc_z_theta.flatten())).flatten()
 
-        # test1 = mat_mult(s.enc_gains, s.enc_d2, s.mod)
-        # test2 = enc_z_vec.reshape(-1, 1)
         s.enc_gains = add(s.enc_gains, enc_z_vec.reshape(-1, 1), s.mod)
         s.gains = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 3) # decrypt to update plaintext gains vector and reset integration increasing depth
-        # s.enc_gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta)
 
         enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
 
         # Beta attack
-        # if k >= 1000 and k < 1500:
-        #     enc_u = s.attack(enc_u, k)
+        if k >= 1000 and k < 1500:
+            enc_u = s.attack(enc_u)
 
         s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 4)
 
@@ -347,6 +344,6 @@ class MRAC_Encrypter():
 
         s.t = s.t + s.Ts_time
 
-    def attack(s, enc_u, k):
-        enc_u = mult(enc_u, enc(np.abs(10*math.sin(k)), s.kappa, s.p, s.mod, 1), s.mod)
+    def attack(s, enc_u):
+        enc_u = mult(enc_u, enc(np.abs(10*math.sin(math.pi*s.t/4)), s.kappa, s.p, s.mod, 1), s.mod)
         return enc_u

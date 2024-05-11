@@ -1,20 +1,19 @@
 import math
 import time
-from integrator import *
 from mpmath import mp
 from disc import *
 from scipy.linalg import solve_discrete_lyapunov
+from max_num import *
+from tuning import *
 
 class MRAC_Encrypter():
     def __init__(s, enc_method):
         # Encryption
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
-        s.bit_length = 700
+        s.bit_length = 800
         s.rho = 32
-        s.rho_ = 96
-        s.delta = 0.00025
-        s.gam1 = 50
-        s.gam2 = 20
+        s.rho_ = 121
+        s.delta = 0.01
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
 
@@ -76,6 +75,7 @@ class MRAC_Encrypter():
         s.u_vec = []
         s.enc_u_vec = []
         s.r_vec = []
+        s.max_vec = []
         s.enc_gains = 0 # for case 1
 
         # Define parameters
@@ -112,7 +112,7 @@ class MRAC_Encrypter():
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 3000
+        iterations = 500
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -128,6 +128,10 @@ class MRAC_Encrypter():
         print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k} and time {(s.ss_k/iterations) * s.t[-1]}")
         avg = abs(np.array(s.e_vec)[:, 0])
         print(f"State 1 average error is {np.mean(avg)}")
+        max_num = int(np.max(s.max_vec))
+        print(f"Max value is {max_num}")
+        lam, rho, rho_ = tuning(max_num, 3, 6)
+        print(f"Tuning parameters are {lam, rho, rho_}")
 
     def enc_ada(s, k):
         # Plant
@@ -217,9 +221,30 @@ class MRAC_Encrypter():
         s.r_vec.append(r)
         s.gains_vec.append(s.gains.flatten())
 
+        # Getting max number in each iteration
+        max_num(s, s.max_vec, enc_y_omega_x)
+        max_num(s, s.max_vec, enc_y_omega_r)
+        max_num(s, s.max_vec, enc_y_omega_theta)
+        max_num(s, s.max_vec, enc_yr_omega_x)
+        max_num(s, s.max_vec, enc_yr_omega_r)
+        max_num(s, s.max_vec, enc_yr_omega_theta)
+        max_num(s, s.max_vec, enc_eps_x)
+        max_num(s, s.max_vec, enc_eps_r)
+        max_num(s, s.max_vec, enc_eps_theta)
+        max_num(s, s.max_vec, enc_z_x)
+        max_num(s, s.max_vec, enc_z_r)
+        max_num(s, s.max_vec, enc_z_theta)
+        max_num(s, s.max_vec, s.enc_gains)
+        max_num(s, s.max_vec, enc_u)
+        s.max_vec.append(np.max(phi))
+        s.max_vec.append(np.max(s.x))
+        s.max_vec.append(r)
+        s.max_vec.append(np.max(s.xr))
+
+        # Time step
         s.t = s.t + s.Ts_time
 
-        # Decrypting
+        # Decrypting for encryption plotting
         s.enc_u = mp.mpf(int(enc_u))
         s.enc_u = mp.log10(s.enc_u)
         s.enc_u_vec.append(s.enc_u)

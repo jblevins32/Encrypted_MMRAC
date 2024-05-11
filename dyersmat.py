@@ -22,6 +22,9 @@ def mat_enc(matrix, kappa, p, modulus, delta):
 
 #  Matrix Decryption
 def mat_dec(matrix, kappa, p, delta):
+    if isinstance(matrix, int):
+        dec_matrix = dec(matrix, kappa, p, delta)
+        return dec_matrix
     if isinstance(matrix, list):
         matrix = np.array(matrix)
     if len(matrix.shape) == 1:

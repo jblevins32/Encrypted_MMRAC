@@ -10,9 +10,9 @@ class MRAC_Encrypter():
     def __init__(s, enc_method):
         # Encryption
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
-        s.bit_length = 800
+        s.bit_length = 1010
         s.rho = 32
-        s.rho_ = 121
+        s.rho_ = 156
         s.delta = 0.01
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
@@ -112,7 +112,7 @@ class MRAC_Encrypter():
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 500
+        iterations = 5000
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -130,12 +130,14 @@ class MRAC_Encrypter():
         print(f"State 1 average error is {np.mean(avg)}")
         max_num = int(np.max(s.max_vec))
         print(f"Max value is {max_num}")
-        lam, rho, rho_ = tuning(max_num, 3, 6)
+        lam, rho, rho_ = tuning(max_num, 4, 6)
         print(f"Tuning parameters are {lam, rho, rho_}")
 
     def enc_ada(s, k):
         # Plant
+        test = 1
         phi = np.array([[1, s.x[0][0], s.x[1][0], np.abs(s.x[0][0]) * s.x[0][0], np.abs(s.x[1][0]) * s.x[1][0], s.x[0][0] ** 3]]).T
+        phi = phi.astype(int)
         r = math.sin(s.t)
 
         # Changing plant at 20 seconds
@@ -204,7 +206,11 @@ class MRAC_Encrypter():
         enc_z_vec = np.concatenate((enc_z_x.flatten(), enc_z_r.flatten(), enc_z_theta.flatten())).flatten()
 
         s.enc_gains = add(s.enc_gains, enc_z_vec.reshape(-1, 1), s.mod)
-        s.gains = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 3) # decrypt to update plaintext gains vector and reset integration increasing depth
+        # if k % 500 == 0:
+        #     s.gains = mat_dec(s.enc_gains, s.kappa, s.p, s.delta**3)
+        #     s.gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta ** 3)
+
+        s.gains_plot = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 3) # decrypt to update plaintext gains vector and reset integration increasing depth
 
         enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
 
@@ -219,7 +225,7 @@ class MRAC_Encrypter():
         s.xr_vec.append(s.xr.flatten())
         s.e_vec.append(e.flatten())
         s.r_vec.append(r)
-        s.gains_vec.append(s.gains.flatten())
+        s.gains_vec.append(s.gains_plot.flatten())
 
         # Getting max number in each iteration
         max_num(s, s.max_vec, enc_y_omega_x)

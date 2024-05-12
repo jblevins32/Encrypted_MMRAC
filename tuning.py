@@ -3,7 +3,7 @@ import math
 
 def tuning(max_num, d, n):
 
-    b = math.log2(max_num+1)
+    b = math.ceil(math.log2(max_num+1))
     M = (2**b) - 1
     kappa_min = ((n+1)**d)*(M**d)
     nu = math.log2(kappa_min+1)

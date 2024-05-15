@@ -10,7 +10,7 @@ class MRAC_Encrypter():
     def __init__(s, enc_method):
         # Encryption
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
-        s.bit_length = 1010
+        s.bit_length = 1005
         s.rho = 32
         s.rho_ = 156
         s.delta = 0.01
@@ -112,7 +112,7 @@ class MRAC_Encrypter():
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 5000
+        iterations = 500
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -130,7 +130,7 @@ class MRAC_Encrypter():
         print(f"State 1 average error is {np.mean(avg)}")
         max_num = int(np.max(s.max_vec))
         print(f"Max value is {max_num}")
-        lam, rho, rho_ = tuning(max_num, 4, 6)
+        lam, rho, rho_ = tuning(max_num, 4, 8)
         print(f"Tuning parameters are {lam, rho, rho_}")
 
     def enc_ada(s, k):

@@ -23,7 +23,7 @@ def pgen(bit_length, rho_, p):
     q = get_prime_list(eta)
     modulus = p * q
 
-    return modulus
+    return modulus, q
 
 
 def encode(x, delta):

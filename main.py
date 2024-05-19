@@ -53,9 +53,9 @@ def main():
     plt.figure(1, figsize=(8, 4.5))
     # len = 185 # for showing the overflow case
     len = 3000 # for the MMRAC case
-    plt.plot(e.t[0:len], np.array(e.e_vec)[0:len, 0], label=r'$x_1 \; error$', color='blue')
-    plt.plot(e.t[0:len], np.array(e.e_vec)[0:len, 1], label=r'$x_2 \; error$', color='red')
-    plt.ylabel('Tracking Error (m)', fontsize=16)
+    plt.plot(e.t[0:len], np.array(e.e_vec)[0:len, 0], label=r'$x_1$', color='blue')
+    plt.plot(e.t[0:len], np.array(e.e_vec)[0:len, 1], label=r'$x_2$', color='red')
+    plt.ylabel('Tracking Error (deg)', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='lower right', fontsize=12)
     plt.savefig('encrypt_error.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
@@ -66,7 +66,7 @@ def main():
     plt.plot(e.t, np.array(e.xr_vec)[:, 0], label=r'Ref Model $x_1$', color='red')
     plt.plot(e.t, np.array(e.x_vec)[:, 1], label=r'Plant $x_2$', color='blue', linestyle='--')
     plt.plot(e.t, np.array(e.xr_vec)[:, 1], label=r'Ref Model $x_2$', color='red', linestyle='--')
-    plt.ylabel('Output (m)', fontsize=16)
+    plt.ylabel('Output (deg)', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='lower right', fontsize=12)
     plt.savefig('encrypt_outputs.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)

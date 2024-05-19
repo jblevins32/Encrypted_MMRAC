@@ -5,17 +5,21 @@ from disc import *
 from scipy.linalg import solve_discrete_lyapunov
 from max_num import *
 from tuning import *
+from plot_limit import *
+
 
 class MRAC_Encrypter():
     def __init__(s, enc_method):
         # Encryption
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
-        s.bit_length = 1005
+        s.bit_length = 1010
         s.rho = 32
         s.rho_ = 156
         s.delta = 0.01
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
-        s.mod = pgen(s.bit_length, s.rho_, s.p)
+        s.mod, q = pgen(s.bit_length, s.rho_, s.p)
+        # c = (190787524 + (s.kappa-1)*s.kappa + (q-1)*s.p) % s.mod
+        # plot_limit(c, 190787524, s.kappa, s.p, s.mod, q)
 
         # Creating continuous plant state space
         s.A = np.array([[0, 1], [-4, -3]])
@@ -79,9 +83,9 @@ class MRAC_Encrypter():
         s.enc_gains = 0 # for case 1
 
         # Define parameters
-        s.gamma_x = 30 * np.eye(s.n)
+        s.gamma_x = np.diag([30, 10])
         s.gamma_r = 30
-        s.gamma_theta = 30 * np.eye(s.q)
+        s.gamma_theta = np.diag([20, 20, 20, 40, 40, 40])
         s.gains = 0
 
         # Precomputation
@@ -112,7 +116,7 @@ class MRAC_Encrypter():
     # Run timers and chosen algorithm
     def encrypt(s):
         start_time = time.time()
-        iterations = 500
+        iterations = 2000
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -126,11 +130,11 @@ class MRAC_Encrypter():
         execution_time = end_time - start_time
         print(f"Execution time: {execution_time/iterations} seconds")
         print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k} and time {(s.ss_k/iterations) * s.t[-1]}")
-        avg = abs(np.array(s.e_vec)[:, 0])
+        avg = abs(np.array(s.e_vec)[:, 0])F
         print(f"State 1 average error is {np.mean(avg)}")
         max_num = int(np.max(s.max_vec))
-        print(f"Max value is {max_num}")
-        lam, rho, rho_ = tuning(max_num, 4, 8)
+        print(f"Max value is {max_num}")HJK0hljfvouhikgaWUKRJGBJKFKHNKGAMHVH,KDKYFYDFUDFHJSFfYafYHKaFKAGaYHKDaKDFaKYHaYKHaAYFaYHKFaYHKfaYHKafKaFakYHFaKHfaKYHaFDYKDFDYKDFKFkDFkDfujGsCUJgCUJsGFKsFGskjFGsUSFGSUKFGsKzsdkFGKksKCSUKKUSKKksUCKHzsuJFK
+        lam, rho, rho_ = tuning(max_num, 4, 6)        # lam, rho, rho_ = tuning(14748022240000000000, 9, 13)
         print(f"Tuning parameters are {lam, rho, rho_}")
 
     def enc_ada(s, k):
@@ -215,8 +219,7 @@ class MRAC_Encrypter():
         enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
 
         # Beta attack
-        if k >= 1000 and k < 1500:
-            enc_u = s.attack(enc_u)
+        # enc_u = s.attack(enc_u, k)
 
         s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 4)
 
@@ -375,6 +378,9 @@ class MRAC_Encrypter():
 
         s.t = s.t + s.Ts_time
 
-    def attack(s, enc_u):
-        enc_u = mult(enc_u, enc(np.abs(10*math.sin(math.pi*s.t/4)), s.kappa, s.p, s.mod, 1), s.mod)
+    def attack(s, enc_u, k):
+        if k >= 500 and k < 1500: # Adapted
+            enc_u = mult(enc_u, int(np.ceil(np.abs(10 * math.sin(math.pi * s.t / 4)))), s.mod)
+        elif k >= 2000: # Trapped
+            enc_u = mult(enc_u, 100, s.mod)
         return enc_u

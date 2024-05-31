@@ -41,11 +41,20 @@ def decode(m, delta):
 def encrypt(m, kappa, p, modulus):
     q = modulus
 
+    r = q #get_rand(1, q-1)
+    s = kappa #get_rand(0, kappa-1)
+    c = (m + s * kappa + r * p) % modulus
+
+    return c
+
+def encrypt_special(m, kappa, p, modulus):
+    q = modulus
+
     r = get_rand(1, q)
     s = get_rand(0, kappa)
     c = (m + s * kappa + r * p) % modulus
 
-    return c
+    return s,r,c
 
 
 def decrypt(c, kappa, p):
@@ -59,6 +68,10 @@ def enc(x, kappa, p, modulus, delta):
 
     return c
 
+def enc_special(x, kappa, p, modulus, delta):
+    s,r,c = encrypt_special(encode(x, delta), kappa, p, modulus)
+
+    return s,r,c
 
 def dec(c, kappa, p, delta):
     x = decode(decrypt(c, kappa, p), delta)

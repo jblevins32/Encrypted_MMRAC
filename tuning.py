@@ -1,11 +1,10 @@
 from dyersmat import *
 import math
 
-def tuning(max_num, d, n):
+def tuning(m, d, n):
 
-    # b = math.ceil(math.log2(max_num+1))
-    # M = (2**b) - 1
-    M = max_num
+    b = math.ceil(math.log2(m+1))
+    M = (2**b) - 1
     kappa_min = ((n+1)**d)*(M**d)
     nu = math.log2(kappa_min+1)
 
@@ -16,5 +15,4 @@ def tuning(max_num, d, n):
     p_min = ((n+1)**d)*(M+(kappa**2))**d
     lam = math.log2(p_min+1)
 
-    # return lam, rho, rho_
-    return kappa, lam
+    return lam, rho, rho_, p_min, kappa_min

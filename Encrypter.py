@@ -12,18 +12,18 @@ class MRAC_Encrypter():
 
         # Encryption
         s.Encrypt = enc_method  # Encrypt? 0 = none, 1 = encode, 2 = encrypt
-        s.bit_length = 888
-        rho_test = math.log2(s.bit_length) # see what rho should be atleast to prevent brute force attack
+        s.bit_length = 1030
         s.rho = 32
-        s.rho_ = 143
+        s.rho_ = 158 # Should be 156 but this increases noise s which makes modp overflow
         s.delta = 0.01
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
-        s.mod, q = pgen(s.bit_length, s.rho_, s.p)
-        c = (100000000 + (s.kappa-1)*s.kappa + (q-1)*s.p) % s.mod #190787524
-        kappa, lam = tuning(100000000, 4, 1)
-        c2 = math.log(c)
-        c3 = math.log(s.p*q)
-        plot_limit(c, 100000000, s.kappa, s.p, s.mod, q)
+        s.mod = pgen(s.bit_length, s.rho_, s.p)
+
+        # Tuning testing stuff
+        lam, rho, rho_, s.p_min, s.kappa_min = tuning(184897058, 4, 10)
+        test1 = math.log2(s.p)
+        test2 = math.log2(s.p_min)
+        prob = (s.p-s.p_min)/s.p
 
         # Creating continuous plant state space
         s.A = np.array([[0, 1], [-4, -3]])
@@ -41,7 +41,7 @@ class MRAC_Encrypter():
         s.Ts = .01
         s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
         s.Ar, s.Br, s.Cr, s.Dr = disc(s.Ar, s.Br, s.Cr, s.Dr, s.Ts)
-        # eigenvalues = np.linalg.eigvals(s.Ar)
+        eigenvalues = np.linalg.eigvals(s.Ar-s.B*10)
         # abs_eigenvalues = np.abs(eigenvalues)
 
         # Initial Conditions
@@ -83,8 +83,10 @@ class MRAC_Encrypter():
         s.u_vec = []
         s.enc_u_vec = []
         s.r_vec = []
+        s.exec_time_vec =[]
         s.max_vec = []
         s.enc_gains = 0 # for case 1
+        s.trap = 'false'
 
         # Define parameters
         s.gamma_x = np.diag([30, 10])
@@ -119,8 +121,8 @@ class MRAC_Encrypter():
 
     # Run timers and chosen algorithm
     def encrypt(s):
+        iterations = 1500
         start_time = time.time()
-        iterations = 500
         for k in range(1, iterations):
             # print(k)
             if s.Encrypt == 2:
@@ -129,8 +131,8 @@ class MRAC_Encrypter():
                 s.overflow_ada(k)
             elif s.Encrypt == 0:
                 s.ada(k)
-        s.t = np.arange(s.Ts, (k+1) * s.Ts, s.Ts)
         end_time = time.time()
+        s.t = np.arange(s.Ts, (k+1) * s.Ts, s.Ts)
         execution_time = end_time - start_time
         print(f"Execution time: {execution_time/iterations} seconds")
         print(f"State 1 error becomes < {s.e_tol} permanently at iteration {s.ss_k} and time {(s.ss_k/iterations) * s.t[-1]}")
@@ -138,13 +140,19 @@ class MRAC_Encrypter():
         print(f"State 1 average error is {np.mean(avg)}")
         max_num = int(np.max(s.max_vec))
         print(f"Max value is {max_num}")
-        lam, rho, rho_ = tuning(max_num, 4, 6)        # lam, rho, rho_ = tuning(14748022240000000000, 9, 13)
-        print(f"Tuning parameters are {lam, rho, rho_}")
+        # lam, rho, rho_ = tuning(max_num, 4, 6)        # lam, rho, rho_ = tuning(14748022240000000000, 9, 13)
+        # print(f"Tuning parameters are {lam, rho, rho_}")
 
     def enc_ada(s, k):
         # Plant
-        phi = np.array([[1, s.x[0][0], s.x[1][0], np.abs(s.x[0][0]) * s.x[0][0], np.abs(s.x[1][0]) * s.x[1][0], s.x[0][0] ** 3]]).T
-        phi = phi.astype(int)
+        phi1 = 1
+        phi2 = s.x[0][0]
+        phi3 = s.x[1][0]
+        phi4 = np.abs(s.x[0][0]) * s.x[0][0]
+        phi5 = np.abs(s.x[1][0]) * s.x[1][0]
+        phi6 = s.x[0][0] ** 3
+        phi = np.array([[phi1, phi2, phi3, phi4, phi5, phi6]]).T
+        # phi = phi.astype(int)
         r = math.sin(s.t)
 
         # Changing plant at 20 seconds
@@ -152,6 +160,9 @@ class MRAC_Encrypter():
         #     s.A = np.array([[0, 1], [-8, -8]])
         #     s.B = np.array([[0], [3]])
         #     s.A, s.B, s.C, s.D = disc(s.A, s.B, s.C, s.D, s.Ts)
+
+        if (s.trap == 'true'): # state feedback control take over if trap occurs
+            s.u = -10*s.x
 
         s.xr = np.dot(s.Ar, s.xr) + s.Br * r
         s.x = np.dot(s.A, s.x) + s.B * (s.u + np.dot(s.theta, phi))
@@ -188,79 +199,85 @@ class MRAC_Encrypter():
             s.enc_Ts = enc(s.Ts, s.kappa, s.p, s.mod, s.delta)  # d1 for balancing encoding depths
             s.enc_d2 = enc(1, s.kappa, s.p, s.mod, s.delta ** 2)
 
-        enc_r = enc(r, s.kappa, s.p, s.mod, s.delta)  # d1
-        enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
-        enc_x = mat_enc(s.x, s.kappa, s.p, s.mod, s.delta)  # d1
-        enc_phi = mat_enc(phi, s.kappa, s.p, s.mod, s.delta)
+        if (s.trap != 'true'):
+            start_time = time.time()
+            enc_r = enc(r, s.kappa, s.p, s.mod, s.delta)  # d1
+            enc_xr = mat_enc(s.xr, s.kappa, s.p, s.mod, s.delta)  # d1
+            enc_x = mat_enc(s.x, s.kappa, s.p, s.mod, s.delta)  # d1
+            enc_phi = mat_enc(phi, s.kappa, s.p, s.mod, s.delta)
 
-        # Cloud
-        enc_y_omega_x = add(mat_mult(s.enc_G_omega0_x, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_x, enc_x[1][0], s.mod), s.mod)
-        enc_y_omega_r = add(mat_mult(s.enc_G_omega0_r, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_r, enc_x[1][0], s.mod), s.mod)
-        enc_y_omega_theta = add(mat_mult(s.enc_G_omega0_theta, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_theta, enc_x[1][0], s.mod), s.mod)
+            # Cloud
+            enc_y_omega_x = add(mat_mult(s.enc_G_omega0_x, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_x, enc_x[1][0], s.mod), s.mod)
+            enc_y_omega_r = add(mat_mult(s.enc_G_omega0_r, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_r, enc_x[1][0], s.mod), s.mod)
+            enc_y_omega_theta = add(mat_mult(s.enc_G_omega0_theta, enc_x[0][0], s.mod), mat_mult(s.enc_G_omega1_theta, enc_x[1][0], s.mod), s.mod)
 
-        enc_yr_omega_x = add(add(mat_mult(s.enc_A_omega0_x, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_x, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_x, enc_r, s.mod), s.mod)
-        enc_yr_omega_r = add(add(mat_mult(s.enc_A_omega0_r, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_r, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_r, enc_r, s.mod), s.mod)
-        enc_yr_omega_theta = add(add(mat_mult(s.enc_A_omega0_theta, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_theta, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_theta, enc_r, s.mod), s.mod)
+            enc_yr_omega_x = add(add(mat_mult(s.enc_A_omega0_x, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_x, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_x, enc_r, s.mod), s.mod)
+            enc_yr_omega_r = add(add(mat_mult(s.enc_A_omega0_r, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_r, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_r, enc_r, s.mod), s.mod)
+            enc_yr_omega_theta = add(add(mat_mult(s.enc_A_omega0_theta, enc_xr[0][0], s.mod), mat_mult(s.enc_A_omega1_theta, enc_xr[1][0], s.mod), s.mod), mat_mult(s.enc_B_omega_theta, enc_r, s.mod), s.mod)
 
-        enc_eps_x = add(enc_y_omega_x, enc_yr_omega_x, s.mod)
-        enc_eps_r = add(enc_y_omega_r, enc_yr_omega_r, s.mod)
-        enc_eps_theta = add(enc_y_omega_theta, enc_yr_omega_theta, s.mod)
+            enc_eps_x = add(enc_y_omega_x, enc_yr_omega_x, s.mod)
+            enc_eps_r = add(enc_y_omega_r, enc_yr_omega_r, s.mod)
+            enc_eps_theta = add(enc_y_omega_theta, enc_yr_omega_theta, s.mod)
 
-        enc_z_x = mat_mult(enc_x.T,enc_eps_x, s.mod)
-        enc_z_r = mat_mult(enc_r,enc_eps_r, s.mod)
-        enc_z_theta = mat_mult(enc_phi.T,enc_eps_theta, s.mod)
+            enc_z_x = mat_mult(enc_x.T,enc_eps_x, s.mod)
+            enc_z_r = mat_mult(enc_r,enc_eps_r, s.mod)
+            enc_z_theta = mat_mult(enc_phi.T,enc_eps_theta, s.mod)
 
-        enc_z_vec = np.concatenate((enc_z_x.flatten(), enc_z_r.flatten(), enc_z_theta.flatten())).flatten()
+            enc_z_vec = np.concatenate((enc_z_x.flatten(), enc_z_r.flatten(), enc_z_theta.flatten())).flatten()
 
-        s.enc_gains = add(s.enc_gains, enc_z_vec.reshape(-1, 1), s.mod)
-        # if k % 500 == 0:
-        #     s.gains = mat_dec(s.enc_gains, s.kappa, s.p, s.delta**3)
-        #     s.gains = mat_enc(s.gains, s.kappa, s.p, s.mod, s.delta ** 3)
+            s.enc_gains = add(s.enc_gains, enc_z_vec.reshape(-1, 1), s.mod)
 
-        s.gains_plot = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 3) # decrypt to update plaintext gains vector and reset integration increasing depth
+            s.gains_plot = mat_dec(s.enc_gains,  s.kappa, s.p, s.delta ** 3) # decrypt to update plaintext gains vector and reset integration increasing depth
 
-        enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
+            enc_u = add(add(mat_mult(s.enc_gains[:s.n].reshape(1, -1), enc_x, s.mod), mat_mult(s.enc_gains[s.n:s.n + s.m].reshape(1, -1), enc_r, s.mod), s.mod), mat_mult(s.enc_gains[s.n + s.m:s.n + s.m + s.q].reshape(1, -1), enc_phi, s.mod), s.mod)
 
-        # Beta attack
-        enc_u = s.attack(enc_u, k)
+            # Beta attack
+            # if k >= 500 and k < 1000:  # Adapted
+            #     enc_u = s.attack(enc_u, k)
 
-        s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 4)
-
+            s.u = dec(enc_u,  s.kappa, s.p, s.delta ** 4)
+            end_time = time.time()
+            exec_time = end_time - start_time
+            s.exec_time_vec.append(exec_time)
         # Need these vectors later for plotting
+        test = math.log(s.kappa)
         s.x_vec.append(s.x.flatten())
         s.xr_vec.append(s.xr.flatten())
         s.e_vec.append(e.flatten())
         s.r_vec.append(r)
         s.gains_vec.append(s.gains_plot.flatten())
 
-        # Getting max number in each iteration
-        max_num(s, s.max_vec, enc_y_omega_x)
-        max_num(s, s.max_vec, enc_y_omega_r)
-        max_num(s, s.max_vec, enc_y_omega_theta)
-        max_num(s, s.max_vec, enc_yr_omega_x)
-        max_num(s, s.max_vec, enc_yr_omega_r)
-        max_num(s, s.max_vec, enc_yr_omega_theta)
-        max_num(s, s.max_vec, enc_eps_x)
-        max_num(s, s.max_vec, enc_eps_r)
-        max_num(s, s.max_vec, enc_eps_theta)
-        max_num(s, s.max_vec, enc_z_x)
-        max_num(s, s.max_vec, enc_z_r)
-        max_num(s, s.max_vec, enc_z_theta)
-        max_num(s, s.max_vec, s.enc_gains)
-        max_num(s, s.max_vec, enc_u)
-        s.max_vec.append(np.max(phi))
-        s.max_vec.append(np.max(s.x))
-        s.max_vec.append(r)
-        s.max_vec.append(np.max(s.xr))
+        if (s.trap != 'true'):
+            # Getting max number in each iteration
+            max_num(s, s.max_vec, enc_y_omega_x)
+            max_num(s, s.max_vec, enc_y_omega_r)
+            max_num(s, s.max_vec, enc_y_omega_theta)
+            max_num(s, s.max_vec, enc_yr_omega_x)
+            max_num(s, s.max_vec, enc_yr_omega_r)
+            max_num(s, s.max_vec, enc_yr_omega_theta)
+            max_num(s, s.max_vec, enc_eps_x)
+            max_num(s, s.max_vec, enc_eps_r)
+            max_num(s, s.max_vec, enc_eps_theta)
+            max_num(s, s.max_vec, enc_z_x)
+            max_num(s, s.max_vec, enc_z_r)
+            max_num(s, s.max_vec, enc_z_theta)
+            max_num(s, s.max_vec, s.enc_gains)
+            max_num(s, s.max_vec, enc_u)
+            s.max_vec.append(np.max(phi))
+            s.max_vec.append(np.max(s.x))
+            s.max_vec.append(r)
+            s.max_vec.append(np.max(s.xr))
+
+            # Decrypting for encryption plotting
+            s.enc_u = mp.mpf(int(enc_u))
+            s.enc_u = mp.log10(s.enc_u)
+            s.enc_u_vec.append(s.enc_u)
+            s.u_vec.append(s.u)
 
         # Time step
         s.t = s.t + s.Ts_time
 
-        # Decrypting for encryption plotting
-        s.enc_u = mp.mpf(int(enc_u))
-        s.enc_u = mp.log10(s.enc_u)
-        s.enc_u_vec.append(s.enc_u)
-        s.u_vec.append(s.u)
+
 
     def overflow_ada(s, k):
         # Plant
@@ -382,8 +399,24 @@ class MRAC_Encrypter():
         s.t = s.t + s.Ts_time
 
     def attack(s, enc_u, k):
-        if k >= 500 and k < 1500: # Adapted
-            enc_u = mult(enc_u, int(np.ceil(np.abs(10 * math.sin(math.pi * s.t / 4)))), s.mod)
-        # elif k >= 2000: # Trapped
-        #     enc_u = mult(enc_u, 100, s.mod)
+        # Additive
+        # beta = 100000000
+        # enc_u = add(enc_u, beta, s.mod)
+
+        # Multiplicative invariant
+        # beta = 10
+        # enc_u = mult(enc_u, beta, s.mod)
+
+        # Multiplicative variant
+        # beta = int(np.ceil(np.abs(10 * math.sin(math.pi * s.t / 4))))
+        # enc_u = mult(enc_u, beta, s.mod)
+
+        # Overflow trap
+        enc_u = add(mult(enc_u, enc_u, s.mod), enc_u, s.mod)
+        # test1 = math.log2(enc_u % s.p)
+        # test2 = math.log2(s.p_min)
+        # test3 = math.log2((enc_u % s.p) % s.kappa)
+        # test4 = math.log2(s.kappa_min)
+        if enc_u % s.p > s.p_min or (enc_u % s.p) % s.kappa > s.kappa_min:
+            s.trap = 'true'
         return enc_u

@@ -58,7 +58,7 @@ def main():
     plt.ylabel('Tracking Error (deg)', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='lower right', fontsize=12)
-    plt.savefig('encrypt_error.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
+    plt.savefig('case5_error.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
 
     # Output plot
     plt.figure(2, figsize=(8, 5))
@@ -69,7 +69,7 @@ def main():
     plt.ylabel('Output (deg)', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='lower right', fontsize=12)
-    plt.savefig('encrypt_outputs.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
+    plt.savefig('case5_outputs.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
     plt.show()
 
     # Gains plot
@@ -87,19 +87,27 @@ def main():
     plt.ylabel('Gains', fontsize=16)
     plt.xlabel('Time (s)', fontsize=16)
     plt.legend(loc='upper left', bbox_to_anchor=(0, 1), ncol=3, fontsize=12) #, prop={'size': 10}
-    plt.savefig('encrypt_gains.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
+    plt.savefig('case5_gains.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
+    plt.show()
+
+    # Execution time plot
+    plt.figure(4)
+    plt.plot(e.t, np.array(e.exec_time_vec), color='blue')
+    plt.ylabel('Execution Time (s)', fontsize=16)
+    plt.xlabel('Iteration (x100)', fontsize=16)
+    plt.savefig('case1_execution_time.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
     plt.show()
 
     if e.Encrypt == 2 or 1:
         # Create a single figure with two subplots
-        plt.figure(3)
+        plt.figure(5)
         fig, axs = plt.subplots(2, 1, figsize=(8, 5))
 
         # First subplot: Encrypted Plant Input
         enc_u_vec = np.array(e.enc_u_vec)
         axs[0].plot(e.t, enc_u_vec, color='blue')
         # axs[0].set_title('Encrypted Plant Input')
-        axs[0].set_ylabel(r'$\bar{\bar{u}}$ (deg)', fontsize=16)
+        axs[0].set_ylabel(r'$\bar{\bar{u}}$', fontsize=16)
 
         # Second subplot: Decrypted Plant Input
         e.u_vec = np.array(e.u_vec)
@@ -112,7 +120,7 @@ def main():
         plt.tight_layout()
 
         # Save the combined plot
-        plt.savefig('encrypt_inputs.eps', dpi=300, format='eps')
+        plt.savefig('case5_inputs.eps', dpi=300, format='eps')
 
         # Show the combined plot
         plt.show()

@@ -23,7 +23,7 @@ def pgen(bit_length, rho_, p):
     q = get_prime_list(eta)
     modulus = p * q
 
-    return modulus, q
+    return modulus
 
 
 def encode(x, delta):
@@ -41,21 +41,11 @@ def decode(m, delta):
 def encrypt(m, kappa, p, modulus):
     q = modulus
 
-    r = q #get_rand(1, q-1)
-    s = kappa #get_rand(0, kappa-1)
+    r = get_rand(1, q-1)
+    s = get_rand(0, kappa-1)
     c = (m + s * kappa + r * p) % modulus
 
     return c
-
-def encrypt_special(m, kappa, p, modulus):
-    q = modulus
-
-    r = get_rand(1, q)
-    s = get_rand(0, kappa)
-    c = (m + s * kappa + r * p) % modulus
-
-    return s,r,c
-
 
 def decrypt(c, kappa, p):
     m = min_residue(min_residue(c, p), kappa)
@@ -67,11 +57,6 @@ def enc(x, kappa, p, modulus, delta):
     c = encrypt(encode(x, delta), kappa, p, modulus)
 
     return c
-
-def enc_special(x, kappa, p, modulus, delta):
-    s,r,c = encrypt_special(encode(x, delta), kappa, p, modulus)
-
-    return s,r,c
 
 def dec(c, kappa, p, delta):
     x = decode(decrypt(c, kappa, p), delta)

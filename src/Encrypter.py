@@ -35,35 +35,41 @@ class MRAC_Encrypter():
         s.kappa, s.p = keygen(s.bit_length, s.rho, s.rho_)
         s.mod = pgen(s.bit_length, s.rho_, s.p)
 
-        ## Probability plotting stuff
-        # plt1 = prob_plot(161219503,4,9)
-        # plt2 = prob_plot(16121950300000000, 8, 12)
-        # bit_plot, prob_vec = plt1.calc_prob()
-        # bit_plot2, prob_vec2 = plt2.calc_prob()
-        #
-        # # Create plot
-        # fig, ax = plt.subplots(2,1, figsize=(8, 4))
-        # ax[0].plot(bit_plot, prob_vec, color='blue', label=r'MMRAC')
-        # ax[1].plot(bit_plot2[2:], prob_vec2[2:], color='green', label=r'Unmodified MRAC')
-        #
-        # # Draw horizontal dotted line at y = 1
-        # ax[0].axhline(y=1, color='r', linestyle=':', linewidth=2)
-        # ax[1].axhline(y=1, color='r', linestyle=':', linewidth=2)
-        #
-        # # Set labels
-        # ax[0].set_ylabel(r'$P_{detection}$', fontsize=16)
-        # ax[0].set_xlabel(r'a) $\lambda$ for MMRAC, $d=4$', fontsize=16)
-        #
-        # ax[1].set_ylabel(r'$P_{detection}$', fontsize=16)
-        # ax[1].set_xlabel(r'b) $\lambda$ for unmodified MRAC, $d=8$', fontsize=16)
-        #
-        # # ax.set_xlabel(r'$\lambda$', fontsize=16)
-        # plt.tight_layout()
-        #
-        # # Save the plot
-        # plt.savefig(r'C:\Users\jblevins32\PycharmProjects\Encrypted_Direct_MMRAC\figs\detect_prob.eps', dpi=300, format='eps')  # Specify the filename and DPI (dots per inch)
-        # # plt.legend(fontsize=12)
-        # plt.show()
+        # Generate probability plots
+        plt1 = prob_plot(161219503, 4, 9)
+        plt2 = prob_plot(16121950300000000, 8, 12)
+        bit_plot, prob_vec = plt1.calc_prob()
+        bit_plot2, prob_vec2 = plt2.calc_prob()
+
+        # Create plot
+        fig, ax = plt.subplots(2, 1, figsize=(8, 4))
+        ax[0].plot(bit_plot, prob_vec, color='blue', label=r'MMRAC')
+        ax[1].plot(bit_plot2[2:], prob_vec2[2:], color='green', label=r'Unmodified MRAC')
+
+        # Draw horizontal dotted line at y = 1
+        ax[0].axhline(y=1, color='r', linestyle=':', linewidth=2)
+        ax[1].axhline(y=1, color='r', linestyle=':', linewidth=2)
+
+        # Draw vertical lines at specific x positions
+        ax[0].axvline(x=1027, color='black', linestyle='--', linewidth=2)
+        ax[1].axvline(x=7416, color='black', linestyle='--', linewidth=2)
+
+        # Set labels
+        ax[0].set_ylabel(r'$P_{detection}$', fontsize=16)
+        ax[0].set_xlabel(r'a) $\lambda$ for MMRAC, $d=4$', fontsize=16)
+
+        ax[1].set_ylabel(r'$P_{detection}$', fontsize=16)
+        ax[1].set_xlabel(r'b) $\lambda$ for unmodified MRAC, $d=8$', fontsize=16)
+
+        # Adjust layout
+        plt.tight_layout()
+
+        # Save the plot
+        plt.savefig(r'C:\Users\jblevins32\PycharmProjects\Encrypted_Direct_MMRAC\figs\detect_prob.eps', dpi=300,
+                    format='eps')
+
+        # Show the plot
+        plt.show()
 
         # Creating continuous plant state space
         s.A = np.array([[0, 1], [-4, -3]])

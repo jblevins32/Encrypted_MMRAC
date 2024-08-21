@@ -6,7 +6,7 @@ from dyersmat import *
 def main():
     get_exec = False # Change if you want execution time plot
     if get_exec != True:
-        e = MRAC_Encrypter(enc_method=0, bit_length = 1027)  # input enc_ada, overflowed ada, encode_ada, or ada here. Instantiating the class
+        e = MRAC_Encrypter(enc_method=2, bit_length = 1027)  # input enc_ada, overflowed ada, encode_ada, or ada here. Instantiating the class
         e.encrypt()
     else:
         e = MRAC_Encrypter(enc_method=2, bit_length = 1027)  # input enc_ada, overflowed ada, encode_ada, or ada here. Instantiating the class
